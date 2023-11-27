@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
+from torch_geometric.datasets import ModelNet
 
 
 def test_pointcloud():
@@ -65,7 +67,7 @@ class RandomJitterTransform(object):
         self.clip = clip
 
     def __call__(self, data):
-        """ Randomly jitter points. jittering is per point.
+        """Randomly jitter points. jittering is per point.
 
         Args:
             data (_type_): Nx3 array, original point clouds
@@ -74,19 +76,21 @@ class RandomJitterTransform(object):
             _type_: Nx3 arrray, jittered point clouds
         """
         N, C = data.shape
-        assert(self.clip > 0)
-        jittered_data = np.clip(self.sigma * np.random.randn(N, C), -1 * self.clip, self.clip)
+        assert self.clip > 0
+        jittered_data = np.clip(
+            self.sigma * np.random.randn(N, C), -1 * self.clip, self.clip
+        )
         jittered_data += data
 
         return np.float32(jittered_data)
-    
+
 
 class RandomRotateTransform(object):
     def __init__(self):
         pass
 
     def __call__(self, data):
-        """ Randomly rotate the point clouds to augment the dataset. 
+        """Randomly rotate the point clouds to augment the dataset.
             rotation is per shape nased along ANY direction
 
         Args:
@@ -100,12 +104,12 @@ class RandomRotateTransform(object):
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
 
-        rotation_matrix = np.array([[cosval, 0, sinval],
-                                    [0, 1, 0],
-                                    [-sinval, 0, cosval]])
-        
+        rotation_matrix = np.array(
+            [[cosval, 0, sinval], [0, 1, 0], [-sinval, 0, cosval]]
+        )
+
         rotated_data = np.dot(data.reshape((-1, 3)), rotation_matrix)
-        
+
         return np.float32(rotated_data)
 
 
@@ -114,7 +118,7 @@ class ScaleTransform(object):
         pass
 
     def __call__(self, data):
-        """ Scaling transformation to make all points to be in the cube [0, 1]
+        """Scaling transformation to make all points to be in the cube [0, 1]
 
         Args:
             data (_type_): _description_
@@ -123,19 +127,36 @@ class ScaleTransform(object):
             _type_: _description_
         """
         scaled_data = (data - data.min(axis=0)) / (data.max(axis=0) - data.min(axis=0))
-        
+
         return np.float32(scaled_data)
 
 
-class PointCloudDataset(Dataset):
-    def __init__(self) -> None:
-        super(PointCloudDataset, self).__init__()
+def get_modelnet_10(datadir, batch_size):
+    train_transform = transforms.Compose(
+        [
+            RandomJitterTransform(),
+            RandomJitterTransform(),
+            ScaleTransform(),
+        ]
+    )
 
-    def __getitem__(self, idx):
-        pass
+    valid_transform = transforms.Compose(
+        [
+            ScaleTransform(),
+        ]
+    )
 
-    def __len__(self):
-        pass
+    train_data = ModelNet(
+        root=datadir, name="10", train=True, transform=train_transform
+    )
+    valid_data = ModelNet(
+        root=datadir, name="10", train=False, transform=valid_transform
+    )
+
+    trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    validloader = DataLoader(valid_data, batch_size=batch_size, shuffle=False)
+
+    return trainloader, validloader
 
 
 class PointNet(nn.Module):
@@ -150,7 +171,9 @@ class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience.
     Copyright (c) 2018 Bjarte Mehus Sunde"""
 
-    def __init__(self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print):
+    def __init__(
+        self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print
+    ):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -195,7 +218,9 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         """Saves model when validation loss decrease."""
         if self.verbose:
-            self.trace_func(f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...")
+            self.trace_func(
+                f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
         torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
 
@@ -219,16 +244,17 @@ class Solver(object):
         # to track the average training loss per epoch as the model trains
         avg_train_losses = []
         # to track the average validation loss per epoch as the model trains
-        avg_valid_losses = [] 
-        
+        avg_valid_losses = []
+
         # initialize the early_stopping object
         early_stopping = EarlyStopping(patience=self.patience, verbose=True)
 
         for epoch in range(self.epochs):
             self.model.train()
 
-            loop = tqdm(iterable=enumerate(self.trainloader), 
-                        total=len(self.trainloader), leave=False)
+            loop = tqdm(iterable=enumerate(self.trainloader),
+                        total=len(self.trainloader),
+                        leave=False)
 
             for _, (x_train, y_train) in loop:
                 # put data and labels into the correct device
@@ -255,29 +281,27 @@ class Solver(object):
 
             self.valid_net(valid_losses=valid_losses)
 
-            # print training/validation statistics 
+            # print training/validation statistics
             # calculate average loss over an epoch
             train_loss = np.average(train_losses)
             valid_loss = np.average(valid_losses)
             avg_train_losses.append(train_loss)
             avg_valid_losses.append(valid_loss)
-            
+
             epoch_len = len(str(self.epochs))
-            
-            print_msg = (f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] " 
-                         f"train_loss: {train_loss:.5f} " 
-                         f"valid_loss: {valid_loss:.5f}")
-            
-            print(print_msg)
-            
+
+            print(f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] "
+                  f"train_loss: {train_loss:.5f} "
+                  f"valid_loss: {valid_loss:.5f}")
+
             # clear lists to track next epoch
             train_losses = []
             valid_losses = []
-            
-            # early_stopping needs the validation loss to check if it has decresed, 
+
+            # early_stopping needs the validation loss to check if it has decresed,
             # and if it has, it will make a checkpoint of the current model
-            early_stopping(valid_loss, model)
-            
+            early_stopping(valid_loss, self.model)
+
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -286,8 +310,9 @@ class Solver(object):
         self.model.eval()
 
         with torch.inference_mode():
-            loop = tqdm(iterable=enumerate(self.validloader), 
-                        total=len(self.validloader), leave=False)
+            loop = tqdm(iterable=enumerate(self.validloader),
+                        total=len(self.validloader),
+                        leave=False)
 
             for _, (x_valid, y_valid) in enumerate(loop):
                 x_valid = x_valid.to(self.device)
@@ -306,8 +331,10 @@ class Solver(object):
 
 
 if __name__ == "__main__":
-    # test_pointcloud()
-    model = PointNet()
-    solver = Solver()
+    # # test_pointcloud()
+    # model = PointNet()
+    # solver = Solver()
 
-    solver.train_net()
+    # solver.train_net()
+
+    trainloader, validloader = get_modelnet_10(datadir="./data", batch_size=32)
