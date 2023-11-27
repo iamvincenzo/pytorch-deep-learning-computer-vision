@@ -53,5 +53,23 @@ def test_pointcloud():
     print((13 * 0.5304) + (14 * -0.1265) + (15 * 0.1165) + 0.3391)  # 2nd kernel
 
 
+class PointNet(nn.Module):
+    def __init__(self):
+        super(PointNet, self).__init__()
+
+    def forward(self, x):
+        pass
+
+class Solver(object):
+    def __init__(self):
+        pass
+
+    def train_net(self):
+        pass
+
+    def valid_net(self):
+        pass
+
 if __name__ == "__main__":
-    test_pointcloud()
+    # test_pointcloud()
+    pass
