@@ -60,6 +60,7 @@ class PointNet(nn.Module):
     def forward(self, x):
         pass
 
+
 class Solver(object):
     def __init__(self):
         pass
@@ -69,6 +70,7 @@ class Solver(object):
 
     def valid_net(self):
         pass
+
 
 if __name__ == "__main__":
     # test_pointcloud()
