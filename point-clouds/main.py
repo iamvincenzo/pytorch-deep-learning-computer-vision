@@ -98,6 +98,105 @@ class ScaleTransform(object):
         return scaled_data
 
 
+class CustomModelNetDataset(Dataset):
+    def __init__(self, data_root, transform, train):
+        """
+        Custom dataset for loading 3D point cloud data from ModelNet.
+
+        Args:
+            data_root (str): Root directory of the dataset.
+            transform (callable): Optional transform to be applied on a sample.
+            train (bool): Flag indicating whether to load training or testing data.
+        """
+        super(CustomModelNetDataset, self).__init__()
+        self.data_root = data_root
+        self.transform = transform
+        self.train = train
+        self.file_paths = []
+        self.class_to_idx = {}
+        self.find_classes()
+        self.get_file_list()
+
+    def find_classes(self):
+        """
+        Finds and assigns numerical indices to class labels based on subdirectories in the dataset.
+
+        Raises:
+            FileNotFoundError: If no classes are found in the specified data root.
+        """
+        classes = sorted(entry.name for entry in os.scandir(self.data_root) if entry.is_dir())
+
+        if not classes:
+            raise FileNotFoundError(f"Couldn't find any classes in {self.data_root}... please check file structure.")
+        
+        self.class_to_idx = {class_name: i for i, class_name in enumerate(classes)}
+
+    def get_file_list(self):
+        """
+        Retrieves the list of file paths for either training or testing data.
+
+        Sets:
+            self.file_paths (list): List of file paths for 3D point cloud data.
+        """
+        if self.train:
+            self.file_paths = list(pathlib.Path(self.data_root).glob("*/train/*.off"))
+        else:
+            self.file_paths = list(pathlib.Path(self.data_root).glob("*/test/*.off"))
+
+    def load_point_cloud(self, file_path, skiprows=2, maxrows=12636, type=np.float32):
+        """
+        Loads 3D point cloud data from an OFF file.
+
+        Args:
+            file_path (str): Path to the OFF file.
+            skiprows (int, optional): Number of header lines to skip. Defaults to 2.
+            maxrows (int, optional): Maximum number of rows to read. Defaults to 12636.
+            type (numpy.dtype, optional): Data type to be used. Defaults to np.float32.
+
+        Returns:
+            torch.Tensor: 3D point cloud data as a PyTorch tensor.
+        """
+        with open(file_path, "r") as file:
+            lines = file.readlines()[skiprows:]
+
+        # Extract x, y, z coordinates
+        coordinates = [list(map(float, line.strip().split()[:3])) for line in lines]
+
+        np_array = np.array(coordinates, dtype=type)
+
+        return torch.from_numpy(np_array)
+
+    def __getitem__(self, index):
+        """
+        Retrieves a specific item from the dataset.
+
+        Args:
+            index (int): Index of the item to retrieve.
+
+        Returns:
+            tuple: Tuple containing the 3D point cloud data and its corresponding class index.
+        """
+        pntcld_path = self.file_paths[index]
+
+        class_name = pntcld_path.parent.parent.name
+
+        point_cloud = self.load_point_cloud(file_path=pntcld_path)
+
+        if self.transform is not None:
+            point_cloud = self.transform(point_cloud)
+        
+        return point_cloud, self.class_to_idx[class_name]
+
+    def __len__(self):
+        """
+        Returns the total number of items in the dataset.
+
+        Returns:
+            int: Total number of items in the dataset.
+        """
+        return len(self.file_paths)
+
+
 class PointNet(nn.Module):
     def __init__(self, num_classes=10):
         super(PointNet, self).__init__()
@@ -107,12 +206,9 @@ class PointNet(nn.Module):
         self.fc1 = nn.Linear(128, 64)
         self.fc2 = nn.Linear(64, num_classes)
 
-    def forward(self, data):
-        # Assuming 'data' is a Batch object with 'pos' attribute
-        x = data.pos  # Get the point positions
-
+    def forward(self, x):
         # Apply your network operations
-        x = F.relu(self.conv1(x.permute(0, 2, 1).to_dense()))
+        x = F.relu(self.conv1(x.permute(0, 2, 1)))
         x = F.relu(self.conv2(x))
         x = F.relu(self.fc1(x.mean(dim=-1)))
         x = self.fc2(x)
@@ -308,105 +404,6 @@ class Solver(object):
         self.model.train()
 
 
-class CustomModelNetDataset(Dataset):
-    def __init__(self, data_root, transform, train):
-        """
-        Custom dataset for loading 3D point cloud data from ModelNet.
-
-        Args:
-            data_root (str): Root directory of the dataset.
-            transform (callable): Optional transform to be applied on a sample.
-            train (bool): Flag indicating whether to load training or testing data.
-        """
-        super(CustomModelNetDataset, self).__init__()
-        self.data_root = data_root
-        self.transform = transform
-        self.train = train
-        self.file_paths = []
-        self.class_to_idx = {}
-        self.find_classes()
-        self.get_file_list()
-
-    def find_classes(self):
-        """
-        Finds and assigns numerical indices to class labels based on subdirectories in the dataset.
-
-        Raises:
-            FileNotFoundError: If no classes are found in the specified data root.
-        """
-        classes = sorted(entry.name for entry in os.scandir(self.data_root) if entry.is_dir())
-
-        if not classes:
-            raise FileNotFoundError(f"Couldn't find any classes in {self.data_root}... please check file structure.")
-        
-        self.class_to_idx = {class_name: i for i, class_name in enumerate(classes)}
-
-    def get_file_list(self):
-        """
-        Retrieves the list of file paths for either training or testing data.
-
-        Sets:
-            self.file_paths (list): List of file paths for 3D point cloud data.
-        """
-        if self.train:
-            self.file_paths = list(pathlib.Path(self.data_root).glob("*/train/*.off"))
-        else:
-            self.file_paths = list(pathlib.Path(self.data_root).glob("*/test/*.off"))
-
-    def load_point_cloud(self, file_path, skiprows=2, maxrows=12636, type=np.float32):
-        """
-        Loads 3D point cloud data from an OFF file.
-
-        Args:
-            file_path (str): Path to the OFF file.
-            skiprows (int, optional): Number of header lines to skip. Defaults to 2.
-            maxrows (int, optional): Maximum number of rows to read. Defaults to 12636.
-            type (numpy.dtype, optional): Data type to be used. Defaults to np.float32.
-
-        Returns:
-            torch.Tensor: 3D point cloud data as a PyTorch tensor.
-        """
-        with open(file_path, "r") as file:
-            lines = file.readlines()[skiprows:]
-
-        # Extract x, y, z coordinates
-        coordinates = [list(map(float, line.strip().split()[:3])) for line in lines]
-
-        np_array = np.array(coordinates, dtype=type)
-
-        return torch.from_numpy(np_array)
-
-    def __getitem__(self, index):
-        """
-        Retrieves a specific item from the dataset.
-
-        Args:
-            index (int): Index of the item to retrieve.
-
-        Returns:
-            tuple: Tuple containing the 3D point cloud data and its corresponding class index.
-        """
-        pntcld_path = self.file_paths[index]
-
-        class_name = pntcld_path.parent.parent.name
-
-        point_cloud = self.load_point_cloud(file_path=pntcld_path)
-
-        if self.transform is not None:
-            point_cloud = self.transform(point_cloud)
-        
-        return point_cloud, self.class_to_idx[class_name]
-
-    def __len__(self):
-        """
-        Returns the total number of items in the dataset.
-
-        Returns:
-            int: Total number of items in the dataset.
-        """
-        return len(self.file_paths)
-
-
 def test_pointcloud():
     # sample 3D point cloud with three features (x, y, z)
     # batch size: 1, Number of points: 5, Number of features: 3
@@ -489,7 +486,7 @@ def visualize_pointcloud(point_cloud):
 
 if __name__ == "__main__":
 
-    batch_size = 1
+    batch_size = 32
     base_path = "./point-clouds/data/raw/"
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
