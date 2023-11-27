@@ -10,8 +10,9 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from mpl_toolkits.mplot3d import Axes3D
 from torch.nn.utils.rnn import pad_sequence
+
+from pointnet import PointNetCls
 
 
 class RandomJitterTransform(object):
@@ -613,10 +614,12 @@ if __name__ == "__main__":
     #     visualize_pointcloud(x[0].squeeze())
 
     # create an instance of the PointNet model and move it to the specified device
-    point_net = PointNet().to(device)
+    # point_net = PointNet().to(device)
+    point_net = PointNetCls(k=10).to(device)
     
     # define the optimizer and loss function for training the model
-    optimizer = torch.optim.Adam(params=point_net.parameters(), lr=0.001, betas=(0.9, 0.999))
+    optimizer = torch.optim.Adam(params=point_net.parameters(), 
+                                 lr=0.001, betas=(0.9, 0.999))
     loss_fn = nn.CrossEntropyLoss()
 
     # create an instance of the Solver class for training and validation
@@ -631,4 +634,3 @@ if __name__ == "__main__":
     
     # train the neural network
     solver.train_net()
-    
