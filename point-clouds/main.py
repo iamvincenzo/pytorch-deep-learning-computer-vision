@@ -210,16 +210,32 @@ class CustomModelNetDataset(Dataset):
 
 class PointNet(nn.Module):
     def __init__(self, num_classes=10):
+        """
+        PointNet architecture for point cloud classification.
+
+        Args:
+            num_classes (int): Number of classes for the classification task.
+        """
         super(PointNet, self).__init__()
 
-        self.conv1 = nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1)
-        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1)
+        self.conv1 = nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1)        
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1)        
         self.fc1 = nn.Linear(128, 64)
         self.fc2 = nn.Linear(64, num_classes)
 
     def forward(self, x):
-        # apply your network operations
-        x = F.relu(self.conv1(x.permute(0, 2, 1)))
+        """
+        Defines the forward pass of the PointNet architecture.
+
+        Args:
+            x (torch.Tensor): Input point cloud tensor of shape (batch_size, num_points, num_channels).
+
+        Returns:
+            torch.Tensor: Output tensor after forward pass for classification.
+        """
+        # permute the input tensor to match the expected shape for 1D convolution
+        x = x.permute(0, 2, 1)
+        x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.fc1(x.mean(dim=-1)))
         x = self.fc2(x)
