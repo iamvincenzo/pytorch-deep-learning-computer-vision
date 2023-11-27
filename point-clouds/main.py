@@ -2,6 +2,7 @@ import os
 import glob
 import torch
 import pathlib
+import argparse
 import numpy as np
 from tqdm import tqdm
 import torch.nn as nn
@@ -248,7 +249,7 @@ class EarlyStopping:
     Early stops the training if validation loss doesn't improve after a given patience.
     Copyright (c) 2018 Bjarte Mehus Sunde
     """
-    def __init__(self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print):
+    def __init__(self, patience=7, verbose=False, delta=0, path="./checkpoints/checkpoint.pt", trace_func=print):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -597,45 +598,111 @@ def visualize_pointcloud(point_cloud):
     # show the plot
     plt.show()
 
+def get_args():
+    parser = argparse.ArgumentParser()
+
+    # model-infos
+    #######################################################################################
+    parser.add_argument("--run_name", type=str, default="test_1",
+                        help="the name assigned to the current run")
+
+    parser.add_argument("--model_name", type=str, default="pointnet",
+                        help="the name of the model to be saved or loaded")
+    #######################################################################################
+
+    # training-parameters (1)
+    #######################################################################################
+    parser.add_argument("--num_epochs", type=int, default=100,
+                        help="the total number of training epochs")
+
+    parser.add_argument("--batch_size", type=int, default=2,
+                        help="the batch size for training and validation data")
+
+    # https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/files/szymon_migacz-pytorch-performance-tuning-guide.pdf    
+    parser.add_argument("--workers", type=int, default=4,
+                        help="the number of workers in the data loader")
+    #######################################################################################
+
+    # training-parameters (2)
+    #######################################################################################
+    parser.add_argument("--lr", type=float, default=0.001,
+                        help="the learning rate for optimization")
+
+    parser.add_argument("--loss", type=str, default="cel",
+                        choices=["cel"],
+                        help="the loss function used for model optimization")
+
+    parser.add_argument("--opt", type=str, default="Adam", 
+                        choices=["SGD", "Adam"],
+                        help="the optimizer used for training")
+
+    parser.add_argument("--patience", type=int, default=5,
+                        help="the threshold for early stopping during training")
+    #######################################################################################
+
+    # training-parameters (3)
+    #######################################################################################
+    parser.add_argument("--load_model", action="store_true",
+                        help="determines whether to load the model from a checkpoint")
+
+    parser.add_argument("--checkpoint_path", type=str, default="./checkpoints", 
+                        help="the path to save the trained model")
+
+    parser.add_argument("--num_classes", type=int, default=10,
+                        help="the number of classes to predict with the final Linear layer")
+    #######################################################################################
+
+    # data-path
+    #######################################################################################
+    parser.add_argument("--raw_data_path", type=str, default="./point-clouds/data/raw_reduced/",
+                        help="path where to get the raw-dataset")
+    #######################################################################################
+
+    # data transformation
+    #######################################################################################
+    parser.add_argument("--apply_transformations", action="store_true",
+                        help="indicates whether to apply transformations to images")
+    #######################################################################################
+
+    return parser.parse_args()
 
 # check if the script is being run as the main program
 if __name__ == "__main__":
+    args = get_args()
 
-    # set the batch size for training and testing
-    batch_size = 2
-
-    # set the number of training epochs
-    num_epochs = 100
-    
-    # set the base path for the dataset
-    base_path = "./point-clouds/data/raw/"
+    # if folder doesn't exist, then create it
+    if not os.path.isdir(args.checkpoint_path):
+        os.makedirs(args.checkpoint_path)
     
     # determine the device for training (use GPU if available, otherwise use CPU)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # define data transformations for training and testing
-    train_transform = transforms.Compose([RandomJitterTransform(),
-                                          RandomJitterTransform(),
-                                          ScaleTransform()])
-
-    test_transform = transforms.Compose([ScaleTransform()])
+    if args.apply_transformations:
+        train_transform = transforms.Compose([RandomJitterTransform(),
+                                              RandomJitterTransform(),
+                                              ScaleTransform()])
+        test_transform = transforms.Compose([ScaleTransform()])
+    else:
+        train_transform = None
+        test_transform = None
 
     # create instances of the custom dataset for training and testing
-    train_dataset = CustomModelNetDataset(data_root=base_path, 
+    train_dataset = CustomModelNetDataset(data_root=args.raw_data_path, 
                                           transform=train_transform, train=True)    
-    test_dataset = CustomModelNetDataset(data_root=base_path, 
+    test_dataset = CustomModelNetDataset(data_root=args.raw_data_path, 
                                          transform=test_transform, train=False)
 
-    if batch_size > 1:
+    if args.batch_size > 1:
         loader_collate_arg = {"collate_fn": pad_collate_fn}
     else:
         loader_collate_arg = {"collate_fn": collate_fn}
     
     # create DataLoader instances for training and testing
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size,
-                              shuffle=True, num_workers=4, **loader_collate_arg)    
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=4, **loader_collate_arg)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size,
+                              shuffle=True, num_workers=args.workers, **loader_collate_arg)    
+    test_loader = DataLoader(dataset=test_dataset, batch_size=args.batch_size,
+                             shuffle=False, num_workers=args.workers, **loader_collate_arg)
 
     # # visualize samples        
     # for i, (x, y) in enumerate(train_loader):
@@ -643,22 +710,22 @@ if __name__ == "__main__":
     #     visualize_pointcloud(x[0].squeeze())
 
     # create an instance of the PointNet model and move it to the specified device
-    point_net = PointNet().to(device)
+    point_net = PointNet(num_classes=args.num_classes).to(device)
     
     # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=point_net.parameters(), 
-                                 lr=0.001, betas=(0.9, 0.999))
+                                 lr=args.lr, betas=(0.9, 0.999))
     loss_fn = nn.CrossEntropyLoss()
 
     # create an instance of the Solver class for training and validation
-    solver = Solver(epochs=num_epochs, 
+    solver = Solver(epochs=args.num_epochs, 
                     trainloader=train_loader,
                     testloader=test_loader,
                     device=device,
                     model=point_net,
                     optimizer=optimizer,
                     criterion=loss_fn,
-                    patience=5)
+                    patience=args.patience)
     
     # train the neural network
     solver.train_net()
