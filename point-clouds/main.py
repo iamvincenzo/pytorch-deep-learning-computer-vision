@@ -11,7 +11,6 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from mpl_toolkits.mplot3d import Axes3D
-from torch_geometric.datasets import ModelNet
 
 
 class RandomJitterTransform(object):
@@ -302,6 +301,8 @@ class Solver(object):
 
         Prints training and validation statistics for each epoch.
         """
+        print(f"\nStarting training...\n")
+
         # Lists to track training and validation losses
         train_losses = []
         valid_losses = []
@@ -318,7 +319,7 @@ class Solver(object):
             # Use tqdm for a progress bar during training
             loop = tqdm(iterable=enumerate(self.trainloader),
                         total=len(self.trainloader),
-                        leave=False)
+                        leave=True)
 
             for _, (x_train, y_train) in loop:
                 # Move data and labels to the specified device
@@ -343,32 +344,34 @@ class Solver(object):
                 # Record training loss
                 train_losses.append(loss.item())
 
+            print("\n")
+
             # Validate the model on the validation set
-            self.valid_net(valid_losses=valid_losses)
+            # self.valid_net(valid_losses=valid_losses)
 
             # Print training/validation statistics
             # Calculate average loss over an epoch
             train_loss = np.average(train_losses)
-            valid_loss = np.average(valid_losses)
+            # valid_loss = np.average(valid_losses)
             avg_train_losses.append(train_loss)
-            avg_valid_losses.append(valid_loss)
+            # avg_valid_losses.append(valid_loss)
 
             epoch_len = len(str(self.epochs))
 
             print(f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] "
-                  f"train_loss: {train_loss:.5f} "
-                  f"valid_loss: {valid_loss:.5f}")
+                  f"train_loss: {train_loss:.5f} ")
+                #   f"valid_loss: {valid_loss:.5f}")
 
             # Clear lists to track next epoch
             train_losses = []
             valid_losses = []
 
             # Early stopping checks for improvement in validation loss
-            early_stopping(valid_loss, self.model)
+            # early_stopping(valid_loss, self.model)
 
-            if early_stopping.early_stop:
-                print("Early stopping")
-                break
+            # if early_stopping.early_stop:
+            #     print("Early stopping")
+            #     break
 
     def valid_net(self, valid_losses):
         """
@@ -379,13 +382,15 @@ class Solver(object):
         Args:
             valid_losses (list): List to record validation losses.
         """
+        print(f"\nStarting validation...\n")
+
         self.model.eval()
 
         # Use tqdm for a progress bar during validation
         with torch.inference_mode():
             loop = tqdm(iterable=enumerate(self.testloader),
                         total=len(self.testloader),
-                        leave=False)
+                        leave=True)
 
             for _, (x_valid, y_valid) in enumerate(loop):
                 x_valid = x_valid.to(self.device)
@@ -400,9 +405,32 @@ class Solver(object):
                 # Record validation loss
                 valid_losses.append(loss.item())
 
+        print("\n")
+
         # Set the model back to training mode
         self.model.train()
 
+
+def collate_fn(batch):
+    """
+    Custom collate function to handle point clouds of different shapes in the same batch.
+
+    Args:
+        batch (list): List of tuples, where each tuple contains a point cloud tensor and its class index.
+
+    Returns:
+        tuple: Tuple containing a stacked point cloud tensor and a tensor of class indices.
+    """
+    point_clouds, class_indices = zip(*batch)
+
+    # Pad point clouds to the maximum number of points in the batch
+    max_points = max(pc.shape[0] for pc in point_clouds)
+    padded_point_clouds = torch.zeros((len(batch), max_points, point_clouds[0].shape[1]))
+
+    for i, pc in enumerate(point_clouds):
+        padded_point_clouds[i, :pc.shape[0], :] = pc
+
+    return padded_point_clouds, torch.tensor(class_indices)
 
 def test_pointcloud():
     # sample 3D point cloud with three features (x, y, z)
@@ -486,7 +514,7 @@ def visualize_pointcloud(point_cloud):
 
 if __name__ == "__main__":
 
-    batch_size = 32
+    batch_size = 2
     base_path = "./point-clouds/data/raw/"
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -500,8 +528,8 @@ if __name__ == "__main__":
     train_dataset = CustomModelNetDataset(data_root=base_path, transform=train_transform, train=True)    
     test_dataset = CustomModelNetDataset(data_root=base_path, transform=test_transform, train=False)
     
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)    
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=1, collate_fn=collate_fn)    
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=1, collate_fn=collate_fn)
 
 
     point_net = PointNet().to(device)
@@ -526,10 +554,6 @@ if __name__ == "__main__":
     #     print(y_train)
     #     a = input("...")
 
-
-
-
-
     # tensor_array = torch.from_numpy(np.loadtxt("./point-clouds/data/raw/table/train/table_0001.off", 
     #                                            skiprows=2, max_rows=12636, dtype=np.float32))
 
@@ -538,16 +562,6 @@ if __name__ == "__main__":
     # print(tensor_array.permute(0, 2, 1))
 
     # test_pointcloud()
-
-
-
-
-
-
-
-
-
-
 
 # def get_modelnet_10(datadir, batch_size):
 #     train_transform = transforms.Compose(
