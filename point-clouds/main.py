@@ -249,7 +249,7 @@ class EarlyStopping:
     Early stops the training if validation loss doesn't improve after a given patience.
     Copyright (c) 2018 Bjarte Mehus Sunde
     """
-    def __init__(self, patience=7, verbose=False, delta=0, path="./checkpoints/checkpoint.pt", trace_func=print):
+    def __init__(self, patience=7, verbose=False, delta=0, path="./point-clouds/checkpoints/checkpoint.pt", trace_func=print):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -383,13 +383,12 @@ class Solver(object):
 
             all_preds = torch.cat(predictions_list, dim=0)
             all_targets = torch.cat(targets_list, dim=0)
-            train_accuracy = self.compute_accuracy(logits=all_preds,
-                                                   target=all_targets)
+            self.compute_accuracy(logits=all_preds, 
+                                  target=all_targets,
+                                  train=True)
 
             # validate the model on the validation set
-            valid_accuracy = 0
-            self.valid_net(valid_losses=valid_losses, 
-                           valid_accuracy=valid_accuracy)
+            self.valid_net(valid_losses=valid_losses)
 
             # print training/validation statistics
             # calculate average loss over an epoch
@@ -400,8 +399,7 @@ class Solver(object):
 
             # print some statistics
             print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} |"
-                  f"validation-loss: {valid_loss:.4f} | train-accuracy: {train_accuracy} |"
-                  f"valid-accuracy: {valid_accuracy}")
+                  f"validation-loss: {valid_loss:.4f}")
 
             # clear lists to track next epoch
             train_losses = []
@@ -416,7 +414,7 @@ class Solver(object):
         
         print("\nTraining model Done...\n")
 
-    def valid_net(self, valid_losses, valid_accuracy):
+    def valid_net(self, valid_losses):
         """
         Validates the neural network on the specified DataLoader for validation data.
 
@@ -427,10 +425,10 @@ class Solver(object):
         """
         print(f"\nStarting validation...\n")
 
-        self.model.eval()
-
         predictions_list = []
         targets_list = []
+
+        self.model.eval()
 
         # use tqdm for a progress bar during validation
         with torch.inference_mode():
@@ -458,20 +456,23 @@ class Solver(object):
 
             all_preds = torch.cat(predictions_list, dim=0)
             all_targets = torch.cat(targets_list, dim=0)
-            valid_accuracy = self.compute_accuracy(logits=all_preds, 
-                                                   target=all_targets)
+            self.compute_accuracy(logits=all_preds,
+                                  target=all_targets,
+                                  train=False)
             
         # set the model back to training mode
         self.model.train()
 
-    def compute_accuracy(self, logits, target):
+    def compute_accuracy(self, logits, target, train):
         # compute predicted labels by taking the argmax along dimension 1 after applying softmax
         predicted_labels = torch.argmax(torch.softmax(logits, dim=1), dim=1)
 
         # compute accuracy
         accuracy = torch.sum(predicted_labels == target).item() / target.size(0)
 
-        return accuracy
+        # print accuracy based on training or validation
+        accuracy_type = "Train" if train else "Valid"
+        print(f"\n{accuracy_type} accuracy: {accuracy:.4f}")
 
 
 def pad_collate_fn(batch):
@@ -645,7 +646,7 @@ def get_args():
     parser.add_argument("--load_model", action="store_true",
                         help="determines whether to load the model from a checkpoint")
 
-    parser.add_argument("--checkpoint_path", type=str, default="./checkpoints", 
+    parser.add_argument("--checkpoint_path", type=str, default="./point-clouds/checkpoints", 
                         help="the path to save the trained model")
 
     parser.add_argument("--num_classes", type=int, default=10,
