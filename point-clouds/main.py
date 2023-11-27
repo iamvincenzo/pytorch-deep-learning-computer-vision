@@ -1,6 +1,7 @@
 from typing import Any
 import torch
 import numpy as np
+import torch_geometric
 from tqdm import tqdm
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+from mpl_toolkits.mplot3d import Axes3D
 from torch_geometric.datasets import ModelNet
 
 
@@ -70,19 +72,23 @@ class RandomJitterTransform(object):
         """Randomly jitter points. jittering is per point.
 
         Args:
-            data (_type_): Nx3 array, original point clouds
+            data (torch_geometric.data.Data): Data object containing the point clouds
 
         Returns:
-            _type_: Nx3 arrray, jittered point clouds
+            torch_geometric.data.Data: Jittered point clouds
         """
-        N, C = data.shape
-        assert self.clip > 0
-        jittered_data = np.clip(
-            self.sigma * np.random.randn(N, C), -1 * self.clip, self.clip
-        )
-        jittered_data += data
+        jittered_data = data.clone()
 
-        return np.float32(jittered_data)
+        # Assuming your points are stored in the 'pos' attribute
+        jittered_data.pos += torch.FloatTensor(
+            np.clip(
+                self.sigma * np.random.randn(data.num_nodes, 3),
+                -1 * self.clip,
+                self.clip,
+            )
+        )
+
+        return jittered_data
 
 
 class RandomRotateTransform(object):
@@ -91,26 +97,27 @@ class RandomRotateTransform(object):
 
     def __call__(self, data):
         """Randomly rotate the point clouds to augment the dataset.
-            rotation is per shape nased along ANY direction
+            rotation is per shape based along ANY direction
 
         Args:
-            data (_type_): Nx3 array, original point clouds
+            data (torch_geometric.data.Data): Data object containing the point clouds
 
         Returns:
-            _type_: Nx3 arrray, rotated point clouds
+            torch_geometric.data.Data: Rotated point clouds
         """
         rotation_angle = np.random.uniform() * 2 * np.pi
 
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
 
-        rotation_matrix = np.array(
+        rotation_matrix = torch.FloatTensor(
             [[cosval, 0, sinval], [0, 1, 0], [-sinval, 0, cosval]]
         )
 
-        rotated_data = np.dot(data.reshape((-1, 3)), rotation_matrix)
+        # Assuming your points are stored in the 'pos' attribute
+        data.pos = torch.matmul(data.pos, rotation_matrix)
 
-        return np.float32(rotated_data)
+        return data
 
 
 class ScaleTransform(object):
@@ -121,14 +128,17 @@ class ScaleTransform(object):
         """Scaling transformation to make all points to be in the cube [0, 1]
 
         Args:
-            data (_type_): _description_
+            data (torch_geometric.data.Data): Data object containing the point clouds
 
         Returns:
-            _type_: _description_
+            torch_geometric.data.Data: Scaled point clouds
         """
-        scaled_data = (data - data.min(axis=0)) / (data.max(axis=0) - data.min(axis=0))
+        # Assuming your points are stored in the 'pos' attribute
+        data.pos = (data.pos - data.pos.min(dim=0).values) / (
+            data.pos.max(dim=0).values - data.pos.min(dim=0).values
+        )
 
-        return np.float32(scaled_data)
+        return data
 
 
 def get_modelnet_10(datadir, batch_size):
@@ -153,18 +163,35 @@ def get_modelnet_10(datadir, batch_size):
         root=datadir, name="10", train=False, transform=valid_transform
     )
 
-    trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    validloader = DataLoader(valid_data, batch_size=batch_size, shuffle=False)
+    # Use the custom collate function in your DataLoader
+    trainloader = DataLoader(
+        train_data, batch_size=batch_size, shuffle=True)
+    validloader = DataLoader(
+        valid_data, batch_size=batch_size, shuffle=False)
 
     return trainloader, validloader
 
 
 class PointNet(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=10):
         super(PointNet, self).__init__()
 
-    def forward(self, x):
-        pass
+        self.conv1 = nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1)
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1)
+        self.fc1 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, num_classes)
+
+    def forward(self, data):
+        # Assuming 'data' is a Batch object with 'pos' attribute
+        x = data.pos  # Get the point positions
+
+        # Apply your network operations
+        x = F.relu(self.conv1(x.permute(0, 2, 1).to_dense()))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.fc1(x.mean(dim=-1)))
+        x = self.fc2(x)
+
+        return x
 
 
 class EarlyStopping:
@@ -226,12 +253,22 @@ class EarlyStopping:
 
 
 class Solver(object):
-    def __init__(self, epochs, trainloader, validloader, device, model, optimizer, criterion, patience):
+    def __init__(
+        self,
+        epochs,
+        trainloader,
+        validloader,
+        device,
+        model,
+        optimizer,
+        criterion,
+        patience,
+    ):
         self.epochs = epochs
         self.trainloader = trainloader
         self.validloader = validloader
         self.device = device
-        self.model = model
+        self.model = model.to(self.device)
         self.optimizer = optimizer
         self.criterion = criterion
         self.patience = patience
@@ -252,9 +289,11 @@ class Solver(object):
         for epoch in range(self.epochs):
             self.model.train()
 
-            loop = tqdm(iterable=enumerate(self.trainloader),
-                        total=len(self.trainloader),
-                        leave=False)
+            loop = tqdm(
+                iterable=enumerate(self.trainloader),
+                total=len(self.trainloader),
+                leave=False,
+            )
 
             for _, (x_train, y_train) in loop:
                 # put data and labels into the correct device
@@ -290,9 +329,11 @@ class Solver(object):
 
             epoch_len = len(str(self.epochs))
 
-            print(f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] "
-                  f"train_loss: {train_loss:.5f} "
-                  f"valid_loss: {valid_loss:.5f}")
+            print(
+                f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] "
+                f"train_loss: {train_loss:.5f} "
+                f"valid_loss: {valid_loss:.5f}"
+            )
 
             # clear lists to track next epoch
             train_losses = []
@@ -310,9 +351,11 @@ class Solver(object):
         self.model.eval()
 
         with torch.inference_mode():
-            loop = tqdm(iterable=enumerate(self.validloader),
-                        total=len(self.validloader),
-                        leave=False)
+            loop = tqdm(
+                iterable=enumerate(self.validloader),
+                total=len(self.validloader),
+                leave=False,
+            )
 
             for _, (x_valid, y_valid) in enumerate(loop):
                 x_valid = x_valid.to(self.device)
@@ -330,11 +373,42 @@ class Solver(object):
         self.model.train()
 
 
+def visualize_pointcloud(point_cloud):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    
+    x = point_cloud[:, 0]
+    y = point_cloud[:, 1]
+    z = point_cloud[:, 2]
+
+    ax.scatter(x, y, z, c='r', marker='o')
+
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+
+    plt.show()
+
+
 if __name__ == "__main__":
-    # # test_pointcloud()
-    # model = PointNet()
-    # solver = Solver()
 
-    # solver.train_net()
+    trainloader, validloader = get_modelnet_10(datadir="./point-clouds/data", batch_size=32)
 
-    trainloader, validloader = get_modelnet_10(datadir="./data", batch_size=32)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    point_net = PointNet().to(device)
+    optimizer = torch.optim.Adam(params=point_net.parameters(), lr=0.001, betas=(0.9, 0.999))
+    loss_fn = nn.CrossEntropyLoss()
+
+    solver = Solver(epochs=3, 
+                    trainloader=trainloader,
+                    validloader=validloader,
+                    device=device,
+                    model=point_net,
+                    optimizer=optimizer,
+                    criterion=loss_fn,
+                    patience=5)
+
+    solver.train_net()
+
+    # test_pointcloud()
