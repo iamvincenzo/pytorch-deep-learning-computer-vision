@@ -154,7 +154,7 @@ class CustomModelNetDataset(Dataset):
         else:
             self.file_paths = list(pathlib.Path(self.data_root).glob("*/test/*.off"))
 
-    def load_point_cloud(self, file_path, skiprows=2, maxrows=12636, type=np.float32):
+    def load_point_cloud(self, file_path, skiprows=2, n_coord=3, type=np.float32):
         """
         Loads 3D point cloud data from an OFF file.
 
@@ -170,12 +170,13 @@ class CustomModelNetDataset(Dataset):
         with open(file_path, "r") as file:
             lines = file.readlines()[skiprows:]
 
-        # extract x, y, z coordinates
-        coordinates = [list(map(float, line.strip().split()[:3])) for line in lines]
+            # extract x, y, z coordinates
+            coordinates = [list(map(float, line.strip().split()))
+                           for line in lines if len(line.strip().split()) == n_coord]
+            
+            np_array = np.array(coordinates, dtype=type)
 
-        np_array = np.array(coordinates, dtype=type)
-
-        return torch.from_numpy(np_array)
+            return torch.from_numpy(np_array)
 
     def __getitem__(self, index):
         """
@@ -601,10 +602,15 @@ if __name__ == "__main__":
         loader_collate_arg = {"collate_fn": collate_fn}
     
     # create DataLoader instances for training and testing
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, 
-                            shuffle=True, num_workers=4, **loader_collate_arg)    
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, 
-                            shuffle=False, num_workers=4, **loader_collate_arg)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size,
+                              shuffle=True, num_workers=4, **loader_collate_arg)    
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size,
+                             shuffle=False, num_workers=4, **loader_collate_arg)
+
+    # # visualize samples        
+    # for i, (x, y) in enumerate(train_loader):
+    #     print(y[0])
+    #     visualize_pointcloud(x[0].squeeze())
 
     # create an instance of the PointNet model and move it to the specified device
     point_net = PointNet().to(device)
@@ -614,7 +620,7 @@ if __name__ == "__main__":
     loss_fn = nn.CrossEntropyLoss()
 
     # create an instance of the Solver class for training and validation
-    solver = Solver(epochs=3, 
+    solver = Solver(epochs=num_epochs, 
                     trainloader=train_loader,
                     testloader=test_loader,
                     device=device,
@@ -625,50 +631,4 @@ if __name__ == "__main__":
     
     # train the neural network
     solver.train_net()
-
-
-
-    # for i, (x_train, y_train) in enumerate(train_loader):
-    #     print(i)
-    #     print(x_train)
-    #     print(y_train)
-    #     a = input("...")
-
-    # tensor_array = torch.from_numpy(np.loadtxt("./point-clouds/data/raw/table/train/table_0001.off", 
-    #                                            skiprows=2, max_rows=12636, dtype=np.float32))
-
-    # tensor_array = tensor_array.unsqueeze(0)
-
-    # print(tensor_array.permute(0, 2, 1))
-
-    # test_pointcloud()
-
-# def get_modelnet_10(datadir, batch_size):
-#     train_transform = transforms.Compose(
-#         [
-#             RandomJitterTransform(),
-#             RandomJitterTransform(),
-#             ScaleTransform(),
-#         ]
-#     )
-
-#     valid_transform = transforms.Compose(
-#         [
-#             ScaleTransform(),
-#         ]
-#     )
-
-#     train_data = ModelNet(
-#         root=datadir, name="10", train=True, transform=train_transform
-#     )
-#     valid_data = ModelNet(
-#         root=datadir, name="10", train=False, transform=valid_transform
-#     )
-
-#     # Use the custom collate function in your DataLoader
-#     trainloader = DataLoader(
-#         train_data, batch_size=batch_size, shuffle=True)
-#     testloader = DataLoader(
-#         valid_data, batch_size=batch_size, shuffle=False)
-
-#     return trainloader, testloader
+    
