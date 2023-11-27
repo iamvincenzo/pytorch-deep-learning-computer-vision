@@ -409,7 +409,7 @@ class Solver(object):
             early_stopping(valid_loss, self.model)
 
             if early_stopping.early_stop:
-                print("Early stopping")
+                print("Early stopping...")
                 break
         
         print("\nTraining model Done...\n")
