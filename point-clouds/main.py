@@ -12,8 +12,6 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
-from pointnet import PointNetCls
-
 
 class RandomJitterTransform(object):
     def __init__(self, sigma=0.01, clip=0.05):
@@ -331,8 +329,8 @@ class Solver(object):
         for epoch in range(self.epochs):
             print(f"\nTraining iteration | Epoch[{epoch + 1}/{self.epochs}]")
 
-            total_predictions = []
-            total_targets = []
+            predictions_list = []
+            targets_list = []
 
             # use tqdm for a progress bar during training
             loop = tqdm(iterable=enumerate(self.trainloader),
@@ -363,16 +361,18 @@ class Solver(object):
                 train_losses.append(loss.item())
 
                 # record predictions and true labels
-                total_predictions.append(y_pred)
-                total_targets.append(y_train)
+                predictions_list.append(y_pred)
+                targets_list.append(y_train)
 
-            all_preds = torch.cat(total_predictions, dim=0)
-            all_targets = torch.cat(total_targets, dim=0)
-            accuracy = self.compute_accuracy(logits=all_preds, 
-                                             target=all_targets)
+            all_preds = torch.cat(predictions_list, dim=0)
+            all_targets = torch.cat(targets_list, dim=0)
+            train_accuracy = self.compute_accuracy(logits=all_preds,
+                                                   target=all_targets)
 
             # validate the model on the validation set
-            self.valid_net(valid_losses=valid_losses)
+            valid_accuracy = 0
+            self.valid_net(valid_losses=valid_losses, 
+                           valid_accuracy=valid_accuracy)
 
             # print training/validation statistics
             # calculate average loss over an epoch
@@ -382,8 +382,9 @@ class Solver(object):
             avg_valid_losses.append(valid_loss)
 
             # print some statistics
-            print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f}, "
-                  f"validation-loss: {valid_loss:.4f} | train-accuracy: {accuracy}")
+            print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} |"
+                  f"validation-loss: {valid_loss:.4f} | train-accuracy: {train_accuracy} |"
+                  f"valid-accuracy: {valid_accuracy}")
 
             # clear lists to track next epoch
             train_losses = []
@@ -398,7 +399,7 @@ class Solver(object):
         
         print("\nTraining model Done...\n")
 
-    def valid_net(self, valid_losses):
+    def valid_net(self, valid_losses, valid_accuracy):
         """
         Validates the neural network on the specified DataLoader for validation data.
 
@@ -410,6 +411,9 @@ class Solver(object):
         print(f"\nStarting validation...\n")
 
         self.model.eval()
+
+        predictions_list = []
+        targets_list = []
 
         # use tqdm for a progress bar during validation
         with torch.inference_mode():
@@ -431,6 +435,15 @@ class Solver(object):
                 # record validation loss
                 valid_losses.append(loss.item())
 
+                # record predictions and true labels
+                predictions_list.append(y_pred)
+                targets_list.append(y_valid)
+
+            all_preds = torch.cat(predictions_list, dim=0)
+            all_targets = torch.cat(targets_list, dim=0)
+            valid_accuracy = self.compute_accuracy(logits=all_preds, 
+                                                   target=all_targets)
+            
         # set the model back to training mode
         self.model.train()
 
@@ -573,7 +586,7 @@ def visualize_pointcloud(point_cloud):
 if __name__ == "__main__":
 
     # set the batch size for training and testing
-    batch_size = 1
+    batch_size = 2
 
     # set the number of training epochs
     num_epochs = 100
@@ -614,8 +627,7 @@ if __name__ == "__main__":
     #     visualize_pointcloud(x[0].squeeze())
 
     # create an instance of the PointNet model and move it to the specified device
-    # point_net = PointNet().to(device)
-    point_net = PointNetCls(k=10).to(device)
+    point_net = PointNet().to(device)
     
     # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=point_net.parameters(), 
