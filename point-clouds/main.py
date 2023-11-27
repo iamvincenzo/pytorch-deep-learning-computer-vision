@@ -573,7 +573,7 @@ def visualize_pointcloud(point_cloud):
 if __name__ == "__main__":
 
     # set the batch size for training and testing
-    batch_size = 2
+    batch_size = 1
 
     # set the number of training epochs
     num_epochs = 100
