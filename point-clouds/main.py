@@ -11,6 +11,7 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from mpl_toolkits.mplot3d import Axes3D
+from torch.nn.utils.rnn import pad_sequence
 
 
 class RandomJitterTransform(object):
@@ -35,15 +36,15 @@ class RandomJitterTransform(object):
         Returns:
             torch.Tensor: Jittered point clouds
         """
-        # Get the number of points and the dimensionality of each point
+        # get the number of points and the dimensionality of each point
         N, C = data.shape
 
         assert self.clip > 0
 
-        # Generate jittered values from a normal distribution
+        # generate jittered values from a normal distribution
         jittered_values = torch.FloatTensor(np.clip(self.sigma * np.random.randn(N, C), -1 * self.clip, self.clip))
 
-        # Add the jittered values to the original points
+        # add the jittered values to the original points
         jittered_data = data + jittered_values
 
         return jittered_data
@@ -64,17 +65,22 @@ class RandomRotateTransform(object):
         Returns:
             torch.Tensor: Rotated point clouds
         """
+        # generate a random rotation angle
         rotation_angle = np.random.uniform() * 2 * np.pi
 
+        # compute cosine and sine values for the rotation angle
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
 
+        # create a 3x3 rotation matrix for the rotation angle
         rotation_matrix = torch.FloatTensor([[cosval, 0, sinval], 
                                              [0, 1, 0], 
                                              [-sinval, 0, cosval]])
 
+        # apply the rotation matrix to the input point clouds
         rotated_data = torch.matmul(data, rotation_matrix)
 
+        # return the rotated point clouds
         return rotated_data
 
 
@@ -92,8 +98,14 @@ class ScaleTransform(object):
         Returns:
             torch.Tensor: Scaled point clouds
         """
-        scaled_data = (data - data.min(dim=0).values) / (data.max(dim=0).values - data.min(dim=0).values)
+        # calculate the minimum and maximum values along each dimension
+        min_values = data.min(dim=0).values
+        max_values = data.max(dim=0).values
 
+        # scale the data to fit within the cube [0, 1]
+        scaled_data = (data - min_values) / (max_values - min_values)
+
+        # return the scaled point clouds
         return scaled_data
 
 
@@ -158,7 +170,7 @@ class CustomModelNetDataset(Dataset):
         with open(file_path, "r") as file:
             lines = file.readlines()[skiprows:]
 
-        # Extract x, y, z coordinates
+        # extract x, y, z coordinates
         coordinates = [list(map(float, line.strip().split()[:3])) for line in lines]
 
         np_array = np.array(coordinates, dtype=type)
@@ -206,7 +218,7 @@ class PointNet(nn.Module):
         self.fc2 = nn.Linear(64, num_classes)
 
     def forward(self, x):
-        # Apply your network operations
+        # apply your network operations
         x = F.relu(self.conv1(x.permute(0, 2, 1)))
         x = F.relu(self.conv2(x))
         x = F.relu(self.fc1(x.mean(dim=-1)))
@@ -220,7 +232,6 @@ class EarlyStopping:
     Early stops the training if validation loss doesn't improve after a given patience.
     Copyright (c) 2018 Bjarte Mehus Sunde
     """
-
     def __init__(self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print):
         """
         Args:
@@ -301,77 +312,89 @@ class Solver(object):
 
         Prints training and validation statistics for each epoch.
         """
-        print(f"\nStarting training...\n")
+        print(f"\nStarting training...")
 
-        # Lists to track training and validation losses
+        # lists to track training and validation losses
         train_losses = []
         valid_losses = []
-        # Lists to track average losses per epoch
+        # lists to track average losses per epoch
         avg_train_losses = []
         avg_valid_losses = []
 
-        # Initialize the early_stopping object
+        # initialize the early_stopping object
         early_stopping = EarlyStopping(patience=self.patience, verbose=True)
+        
+        self.model.train()
 
         for epoch in range(self.epochs):
-            self.model.train()
+            print(f"\nTraining iteration | Epoch[{epoch + 1}/{self.epochs}]")
 
-            # Use tqdm for a progress bar during training
+            total_predictions = []
+            total_targets = []
+
+            # use tqdm for a progress bar during training
             loop = tqdm(iterable=enumerate(self.trainloader),
                         total=len(self.trainloader),
                         leave=True)
 
             for _, (x_train, y_train) in loop:
-                # Move data and labels to the specified device
+                # move data and labels to the specified device
                 x_train = x_train.to(self.device)
                 y_train = y_train.to(self.device)
 
-                # Forward pass: compute predicted outputs by passing inputs to the model
+                # forward pass: compute predicted outputs by passing inputs to the model
                 y_pred = self.model(x_train)
 
-                # Calculate the loss
+                # calculate the loss
                 loss = self.criterion(y_pred, y_train)
 
-                # Clear the gradients of all optimized variables
+                # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
 
-                # Backward pass: compute gradient of the loss with respect to model parameters
+                # backward pass: compute gradient of the loss with respect to model parameters
                 loss.backward()
 
-                # Perform a single optimization step (parameter update)
+                # perform a single optimization step (parameter update)
                 self.optimizer.step()
 
-                # Record training loss
+                # record training loss
                 train_losses.append(loss.item())
 
-            print("\n")
+                # record predictions and true labels
+                total_predictions.append(y_pred)
+                total_targets.append(y_train)
 
-            # Validate the model on the validation set
-            # self.valid_net(valid_losses=valid_losses)
+            all_preds = torch.cat(total_predictions, dim=0)
+            all_targets = torch.cat(total_targets, dim=0)
+            accuracy = self.compute_accuracy(logits=all_preds, 
+                                             target=all_targets)
 
-            # Print training/validation statistics
-            # Calculate average loss over an epoch
+            # validate the model on the validation set
+            self.valid_net(valid_losses=valid_losses)
+
+            # print training/validation statistics
+            # calculate average loss over an epoch
             train_loss = np.average(train_losses)
-            # valid_loss = np.average(valid_losses)
+            valid_loss = np.average(valid_losses)
             avg_train_losses.append(train_loss)
-            # avg_valid_losses.append(valid_loss)
+            avg_valid_losses.append(valid_loss)
 
-            epoch_len = len(str(self.epochs))
+            # print some statistics
+            print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f}, "
+                  f"validation-loss: {valid_loss:.4f} | train-accuracy: {accuracy}")
 
-            print(f"[{epoch:>{epoch_len}}/{self.epochs:>{epoch_len}}] "
-                  f"train_loss: {train_loss:.5f} ")
-                #   f"valid_loss: {valid_loss:.5f}")
-
-            # Clear lists to track next epoch
+            # clear lists to track next epoch
             train_losses = []
             valid_losses = []
 
-            # Early stopping checks for improvement in validation loss
-            # early_stopping(valid_loss, self.model)
+            # early stopping checks for improvement in validation loss
+            early_stopping(valid_loss, self.model)
 
-            # if early_stopping.early_stop:
-            #     print("Early stopping")
-            #     break
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+        
+        print("\nTraining model Done...\n")
 
     def valid_net(self, valid_losses):
         """
@@ -386,34 +409,43 @@ class Solver(object):
 
         self.model.eval()
 
-        # Use tqdm for a progress bar during validation
+        # use tqdm for a progress bar during validation
         with torch.inference_mode():
-            loop = tqdm(iterable=enumerate(self.testloader),
-                        total=len(self.testloader),
+            loop = tqdm(iterable=enumerate(self.testloader), 
+                        total=len(self.testloader), 
                         leave=True)
 
-            for _, (x_valid, y_valid) in enumerate(loop):
+            for _, (x_valid, y_valid) in loop:
+                # move data and labels to the specified device
                 x_valid = x_valid.to(self.device)
                 y_valid = y_valid.to(self.device)
 
-                # Forward pass: compute predicted outputs by passing inputs to the model
+                # forward pass: compute predicted outputs by passing inputs to the model
                 y_pred = self.model(x_valid)
 
-                # Calculate the loss
+                # calculate the loss
                 loss = self.criterion(y_pred, y_valid)
 
-                # Record validation loss
+                # record validation loss
                 valid_losses.append(loss.item())
 
-        print("\n")
-
-        # Set the model back to training mode
+        # set the model back to training mode
         self.model.train()
 
+    def compute_accuracy(self, logits, target):
+        # compute predicted labels by taking the argmax along dimension 1 after applying softmax
+        predicted_labels = torch.argmax(torch.softmax(logits, dim=1), dim=1)
 
-def collate_fn(batch):
+        # compute accuracy
+        accuracy = torch.sum(predicted_labels == target).item() / target.size(0)
+
+        return accuracy
+
+
+def pad_collate_fn(batch):
     """
     Custom collate function to handle point clouds of different shapes in the same batch.
+    Strategy: batch padding (https://plainenglish.io/blog/understanding-collate-fn-in-pytorch-f9d1742647d3)
 
     Args:
         batch (list): List of tuples, where each tuple contains a point cloud tensor and its class index.
@@ -423,14 +455,37 @@ def collate_fn(batch):
     """
     point_clouds, class_indices = zip(*batch)
 
-    # Pad point clouds to the maximum number of points in the batch
-    max_points = max(pc.shape[0] for pc in point_clouds)
-    padded_point_clouds = torch.zeros((len(batch), max_points, point_clouds[0].shape[1]))
+    # pad point clouds to the maximum number of points in the batch
+    padded_point_clouds = pad_sequence(point_clouds, batch_first=True)
+    labels = torch.tensor(class_indices)
 
-    for i, pc in enumerate(point_clouds):
-        padded_point_clouds[i, :pc.shape[0], :] = pc
+    return padded_point_clouds, labels
 
-    return padded_point_clouds, torch.tensor(class_indices)
+def collate_fn(batch):
+    """
+    Custom collate function for PyTorch DataLoader.
+
+    Args:
+        batch (list): A list of samples, where each sample is a tuple (input, target).
+
+    Returns:
+        tuple: A tuple containing two tensors - stacked inputs and a tensor of targets.
+
+    Example:
+        For a batch [(input1, target1), (input2, target2), ...], collate_fn will return:
+        (torch.stack([input1, input2, ...]), torch.tensor([target1, target2, ...]))
+    """
+    # unpack the batch into separate lists of inputs and targets
+    inputs, targets = zip(*batch)
+
+    # stack the inputs along a new dimension to form a batch tensor
+    stacked_inputs = torch.stack(inputs)
+
+    # convert the list of targets to a tensor
+    target_tensor = torch.tensor(targets)
+
+    # return a tuple containing stacked inputs and target tensor
+    return stacked_inputs, target_tensor
 
 def test_pointcloud():
     # sample 3D point cloud with three features (x, y, z)
@@ -489,53 +544,76 @@ def visualize_pointcloud(point_cloud):
         point_cloud (torch.Tensor): 3D point cloud data as a PyTorch tensor with shape (N, 3),
                                     where N is the number of points, and each point has X, Y, Z coordinates.
     """
-    # Create a new 3D figure
+    # create a new 3D figure
     fig = plt.figure()
     
-    # Add a 3D subplot to the figure
+    # add a 3D subplot to the figure
     ax = fig.add_subplot(111, projection="3d")
     
-    # Extract X, Y, Z coordinates from the point cloud
+    # extract X, Y, Z coordinates from the point cloud
     x = point_cloud[:, 0]
     y = point_cloud[:, 1]
     z = point_cloud[:, 2]
 
-    # Scatter plot of the points with red color and spherical markers
+    # scatter plot of the points with red color and spherical markers
     ax.scatter(x, y, z, c='r', marker='o')
 
-    # Set labels for the axes
+    # set labels for the axes
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
 
-    # Show the plot
+    # show the plot
     plt.show()
 
 
+# check if the script is being run as the main program
 if __name__ == "__main__":
 
+    # set the batch size for training and testing
     batch_size = 2
+
+    # set the number of training epochs
+    num_epochs = 100
+    
+    # set the base path for the dataset
     base_path = "./point-clouds/data/raw/"
+    
+    # determine the device for training (use GPU if available, otherwise use CPU)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    # define data transformations for training and testing
     train_transform = transforms.Compose([RandomJitterTransform(),
                                           RandomJitterTransform(),
                                           ScaleTransform()])
 
     test_transform = transforms.Compose([ScaleTransform()])
 
+    # create instances of the custom dataset for training and testing
+    train_dataset = CustomModelNetDataset(data_root=base_path, 
+                                          transform=train_transform, train=True)    
+    test_dataset = CustomModelNetDataset(data_root=base_path, 
+                                         transform=test_transform, train=False)
 
-    train_dataset = CustomModelNetDataset(data_root=base_path, transform=train_transform, train=True)    
-    test_dataset = CustomModelNetDataset(data_root=base_path, transform=test_transform, train=False)
+    if batch_size > 1:
+        loader_collate_arg = {"collate_fn": pad_collate_fn}
+    else:
+        loader_collate_arg = {"collate_fn": collate_fn}
     
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=1, collate_fn=collate_fn)    
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=1, collate_fn=collate_fn)
+    # create DataLoader instances for training and testing
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, 
+                            shuffle=True, num_workers=4, **loader_collate_arg)    
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, 
+                            shuffle=False, num_workers=4, **loader_collate_arg)
 
-
+    # create an instance of the PointNet model and move it to the specified device
     point_net = PointNet().to(device)
+    
+    # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=point_net.parameters(), lr=0.001, betas=(0.9, 0.999))
     loss_fn = nn.CrossEntropyLoss()
 
+    # create an instance of the Solver class for training and validation
     solver = Solver(epochs=3, 
                     trainloader=train_loader,
                     testloader=test_loader,
@@ -544,8 +622,10 @@ if __name__ == "__main__":
                     optimizer=optimizer,
                     criterion=loss_fn,
                     patience=5)
-
+    
+    # train the neural network
     solver.train_net()
+
 
 
     # for i, (x_train, y_train) in enumerate(train_loader):
