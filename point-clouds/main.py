@@ -13,6 +13,8 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
+from model import PointNetClassif
+
 
 class RandomJitterTransform(object):
     def __init__(self, sigma=0.01, clip=0.05):
@@ -98,7 +100,7 @@ class ScaleTransform(object):
         Returns:
             torch.Tensor: Scaled point clouds
         """
-        # calculate the minimum and maximum values along each dimension
+        # calculate the minimum and maximum values along each dimension (by column)
         min_values = data.min(dim=0).values
         max_values = data.max(dim=0).values
 
@@ -360,10 +362,12 @@ class Solver(object):
                 y_train = y_train.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
-                y_pred = self.model(x_train)
+                y_pred, feature_t = self.model(x_train)
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_train)
+                identity = torch.eye(feature_t.shape[-1]).to(self.device)
+                regularization_loss = torch.norm(identity - torch.bmm(feature_t, feature_t.transpose(2, 1)))
+                loss = self.criterion(y_pred, y_train) + 0.001 * regularization_loss # loss = self.criterion(y_pred, y_train)
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -442,7 +446,7 @@ class Solver(object):
                 y_valid = y_valid.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
-                y_pred = self.model(x_valid)
+                y_pred, _ = self.model(x_valid)
 
                 # calculate the loss
                 loss = self.criterion(y_pred, y_valid)
