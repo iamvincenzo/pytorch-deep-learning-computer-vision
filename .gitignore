@@ -163,4 +163,3 @@ cython_debug/
 */checkpoints
 trash-stuff
 temp.py
-pointnet.py
