@@ -29,24 +29,24 @@ class TNet(nn.Module):
             nn.ReLU(),
         )
         self.sharedMLP3 = nn.Sequential(
-            nn.Conv1d(in_channels=128, out_channels=1024, kernel_size=1),
-            nn.BatchNorm1d(1024),
+            nn.Conv1d(in_channels=128, out_channels=256, kernel_size=1),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
         )
 
         # fully connected layers for final transformation matrix
         self.fc1 = nn.Sequential(
-            nn.Linear(in_features=1024, out_features=512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-        )
-        self.fc2 = nn.Sequential(
-            nn.Linear(in_features=512, out_features=256),
+            nn.Linear(in_features=256, out_features=256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
         )
+        self.fc2 = nn.Sequential(
+            nn.Linear(in_features=256, out_features=128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+        )
         self.fc3 = nn.Linear(
-            in_features=256, out_features=output_dim * output_dim
+            in_features=128, out_features=output_dim * output_dim
         )
 
     def forward(self, x):
@@ -114,25 +114,24 @@ class PointNetClassif(nn.Module):
             nn.ReLU(),
         )
         self.sharedMLP5 = nn.Sequential(
-            nn.Conv1d(in_channels=128, out_channels=1024, kernel_size=1),
-            nn.BatchNorm1d(1024),
+            nn.Conv1d(in_channels=128, out_channels=256, kernel_size=1),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
         )
 
         # fully connected layers for classification
         self.fc1 = nn.Sequential(
-            nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU()
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU()
         )
         self.dropout = nn.Dropout(p=0.3)
-        self.fc3 = nn.Linear(256, self.num_classes)
-        self.log_softmax = nn.LogSoftmax(dim=1)
+        self.fc3 = nn.Linear(64, self.num_classes)
 
     def forward(self, x):
         # apply T-Net for input transformation
