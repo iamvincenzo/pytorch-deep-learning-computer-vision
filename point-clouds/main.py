@@ -210,41 +210,6 @@ class CustomModelNetDataset(Dataset):
         return len(self.file_paths)
 
 
-class PointNet(nn.Module):
-    def __init__(self, num_classes=10):
-        """
-        PointNet architecture for point cloud classification.
-
-        Args:
-            num_classes (int): Number of classes for the classification task.
-        """
-        super(PointNet, self).__init__()
-
-        self.conv1 = nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1)        
-        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1)        
-        self.fc1 = nn.Linear(128, 64)
-        self.fc2 = nn.Linear(64, num_classes)
-
-    def forward(self, x):
-        """
-        Defines the forward pass of the PointNet architecture.
-
-        Args:
-            x (torch.Tensor): Input point cloud tensor of shape (batch_size, num_points, num_channels).
-
-        Returns:
-            torch.Tensor: Output tensor after forward pass for classification.
-        """
-        # permute the input tensor to match the expected shape for 1D convolution
-        x = x.permute(0, 2, 1)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.fc1(x.mean(dim=-1)))
-        x = self.fc2(x)
-
-        return x
-
-
 class EarlyStopping:
     """ 
     Early stops the training if validation loss doesn't improve after a given patience.
@@ -623,7 +588,7 @@ def get_args():
                         help="the batch size for training and validation data")
 
     # https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/files/szymon_migacz-pytorch-performance-tuning-guide.pdf    
-    parser.add_argument("--workers", type=int, default=4,
+    parser.add_argument("--workers", type=int, default=1, #4
                         help="the number of workers in the data loader")
     #######################################################################################
 
@@ -714,7 +679,7 @@ if __name__ == "__main__":
     #     visualize_pointcloud(x[0].squeeze())
 
     # create an instance of the PointNet model and move it to the specified device
-    point_net = PointNet(num_classes=args.num_classes).to(device)
+    point_net = PointNetClassif(num_classes=args.num_classes).to(device)
     
     # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=point_net.parameters(), 
