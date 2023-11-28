@@ -1,3 +1,5 @@
+# reference: https://datascienceub.medium.com/pointnet-implementation-explained-visually-c7e300139698
+
 import torch
 import torch.nn as nn
 
