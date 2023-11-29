@@ -249,11 +249,11 @@ def plot_data(X_train, y_train, X_test, y_test, predictions=None):
 
 
 if __name__ == "__main__":
-    # check if GPU is available, else use CPU
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
     # reproducibility
     torch.manual_seed(42)
+    
+    # check if GPU is available, else use CPU
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     # create a Linear Regression model
     net = LinearRegrNet().to(device=device)
