@@ -625,7 +625,7 @@ def get_args():
 
     # data-path
     #######################################################################################
-    parser.add_argument("--raw_data_path", type=str, default="./point-clouds/data/raw_reduced/",
+    parser.add_argument("--raw_data_path", type=str, default="./point-clouds/data/raw/",
                         help="path where to get the raw-dataset")
     #######################################################################################
 
