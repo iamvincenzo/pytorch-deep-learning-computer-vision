@@ -366,7 +366,7 @@ class Solver(object):
             avg_valid_losses.append(valid_loss)
 
             # print some statistics
-            print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} |"
+            print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} | "
                   f"validation-loss: {valid_loss:.4f}")
 
             # clear lists to track next epoch
