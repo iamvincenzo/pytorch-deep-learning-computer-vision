@@ -590,7 +590,7 @@ def get_args():
                         help="the batch size for training and validation data")
 
     # https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/files/szymon_migacz-pytorch-performance-tuning-guide.pdf    
-    parser.add_argument("--workers", type=int, default=1, #4
+    parser.add_argument("--workers", type=int, default=4,
                         help="the number of workers in the data loader")
     #######################################################################################
 
