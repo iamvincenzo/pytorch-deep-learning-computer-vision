@@ -410,10 +410,12 @@ class Solver(object):
                 y_valid = y_valid.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
-                y_pred, _ = self.model(x_valid)
+                y_pred, feature_t = self.model(x_valid)
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_valid)
+                # identity = torch.eye(feature_t.shape[-1]).to(self.device)
+                # regularization_loss = torch.norm(identity - torch.bmm(feature_t, feature_t.transpose(2, 1)))
+                loss = self.criterion(y_pred, y_valid) # + 0.001 * regularization_loss # loss = self.criterion(y_pred, y_valid)
 
                 # record validation loss
                 valid_losses.append(loss.item())
