@@ -538,7 +538,7 @@ def test_pointcloud():
     print((7 * 0.4414) + (8 * 0.4792) + (9 * -0.1353) - 0.2811)  # 1st kernel
     print((13 * 0.5304) + (14 * -0.1265) + (15 * 0.1165) + 0.3391)  # 2nd kernel
 
-def visualize_pointcloud(point_cloud):
+def visualize_pointcloud(point_cloud, label):
     """
     Visualizes a 3D point cloud using a scatter plot.
 
@@ -564,6 +564,7 @@ def visualize_pointcloud(point_cloud):
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
+    ax.set_title(label)
 
     # show the plot
     plt.show()
@@ -675,9 +676,12 @@ if __name__ == "__main__":
                              shuffle=False, num_workers=args.workers, **loader_collate_arg)
 
     # # visualize samples        
-    # for i, (x, y) in enumerate(train_loader):
-    #     print(y[0])
-    #     visualize_pointcloud(x[0].squeeze())
+    # for _, batch in enumerate(train_loader):
+    #     for x, y in zip(*batch):
+    #         key = [key for key, value 
+    #                in train_dataset.class_to_idx.items() 
+    #                if value == y.item()]
+    #         visualize_pointcloud(x.squeeze(), key[0])
 
     # create an instance of the PointNet model and move it to the specified device
     point_net = PointNetClassif(num_classes=args.num_classes).to(device)
