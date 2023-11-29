@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 import torch.nn as nn
 import matplotlib.pyplot as plt
-import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
