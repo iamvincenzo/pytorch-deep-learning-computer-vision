@@ -1,20 +1,26 @@
 import os
 import torch
-import pathlib
 import argparse
 import numpy as np
+import pandas as pd
+from PIL import Image
 from tqdm import tqdm
 import torch.nn as nn
-import matplotlib.pyplot as plt
+from pathlib import Path
+from sklearn.utils import shuffle
 from torchvision import transforms
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 
-from model import Model
+from model import MultiLabelImageClassifier
+
+pd.set_option("display.max_rows", None)
+pd.set_option("display.max_columns", None)
 
 
 class CustomImageDataset(Dataset):
-    def __init__(self, data_root, transform, train):
+    def __init__(self, dataframe, skipcols, data_root, transform):
         """
         Custom dataset for loading 2D images.
 
@@ -24,51 +30,11 @@ class CustomImageDataset(Dataset):
             train (bool): Flag indicating whether to load training or testing data.
         """
         super(CustomImageDataset, self).__init__()
+        self.df = dataframe
+        self.skipcols = skipcols
         self.data_root = data_root
         self.transform = transform
-        self.train = train
-        self.file_paths = []
-        self.class_to_idx = {}
-        self.find_classes()
-        self.get_file_list()
-
-    def find_classes(self):
-        """
-        Finds and assigns numerical indices to class labels based on subdirectories in the dataset.
-
-        Raises:
-            FileNotFoundError: If no classes are found in the specified data root.
-        """
-        classes = sorted(entry.name for entry in os.scandir(self.data_root) if entry.is_dir())
-
-        if not classes:
-            raise FileNotFoundError(f"Couldn't find any classes in {self.data_root}... please check file structure.")
-        
-        self.class_to_idx = {class_name: i for i, class_name in enumerate(classes)}
-
-    def get_file_list(self):
-        """
-        Retrieves the list of file paths for either training or testing data.
-
-        Sets:
-            self.file_paths (list): List of file paths for 3D point cloud data.
-        """
-        if self.train:
-            self.file_paths = list(pathlib.Path(self.data_root).glob("*/train/*.off"))
-        else:
-            self.file_paths = list(pathlib.Path(self.data_root).glob("*/test/*.off"))
-
-    def load_image(self, file_path):
-        """
-        Loads 2D images.
-
-        Args:
-            file_path (str): Path to the OFF file.
-
-        Returns:
-            torch.Tensor: 2D image as a PyTorch tensor.
-        """
-        pass
+        self.toTensor = transforms.ToTensor()
 
     def __getitem__(self, index):
         """
@@ -80,16 +46,20 @@ class CustomImageDataset(Dataset):
         Returns:
             tuple: Tuple containing the 3D point cloud data and its corresponding class index.
         """
-        image_path = self.file_paths[index]
-
-        class_name = image_path.parent.parent.name
-
-        image = self.load_point_cloud(file_path=image_path)
-
-        if self.transform is not None:
-            image = self.transform(image)
+        img_name = self.df.iloc[index]["Image_Name"]
+        img_labels = self.df.iloc[index, self.skipcols:]
+        img_pth = self.data_root / img_name
+        # RGB prevent from grayscale images in the dataset
+        img = Image.open(img_pth).convert("RGB")
+        labels = torch.tensor(img_labels,
+                              dtype=torch.float32)
         
-        return image, self.class_to_idx[class_name]
+        if self.transform is not None:
+            img = self.transform(img)
+
+        img_tensor = self.toTensor(img)        
+        
+        return img_tensor, labels
 
     def __len__(self):
         """
@@ -98,7 +68,7 @@ class CustomImageDataset(Dataset):
         Returns:
             int: Total number of items in the dataset.
         """
-        return len(self.file_paths)
+        return len(self.df)
 
 
 class EarlyStopping:
@@ -203,8 +173,8 @@ class Solver(object):
         for epoch in range(self.epochs):
             print(f"\nTraining iteration | Epoch[{epoch + 1}/{self.epochs}]")
 
-            predictions_list = []
-            targets_list = []
+            predictions = torch.tensor([])
+            targets = torch.tensor([])
 
             # use tqdm for a progress bar during training
             loop = tqdm(iterable=enumerate(self.trainloader),
@@ -217,10 +187,10 @@ class Solver(object):
                 y_train = y_train.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
-                y_pred, feature_t = self.model(x_train)
+                logits = self.model(x_train)
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_train)
+                loss = self.criterion(logits, y_train)
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -234,15 +204,18 @@ class Solver(object):
                 # record training loss
                 train_losses.append(loss.item())
 
-                # record predictions and true labels
-                predictions_list.append(y_pred)
-                targets_list.append(y_train)
+                # since we are using BCEWithLogitsLoss
+                # logits --> probabilities --> labels
+                probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs)
 
-            all_preds = torch.cat(predictions_list, dim=0)
-            all_targets = torch.cat(targets_list, dim=0)
-            self.compute_accuracy(logits=all_preds, 
-                                  target=all_targets,
-                                  train=True)
+                # record predictions and true labels
+                predictions = torch.cat([predictions, y_pred], dim=0)
+                targets = torch.cat([targets, y_train], dim=0)
+
+            self.compute_metrics(predictions=predictions,
+                                 targets=targets,
+                                 train=True)
 
             # validate the model on the validation set
             self.valid_net(valid_losses=valid_losses)
@@ -282,8 +255,8 @@ class Solver(object):
         """
         print(f"\nStarting validation...\n")
 
-        predictions_list = []
-        targets_list = []
+        predictions = torch.tensor([])
+        targets = torch.tensor([])
 
         self.model.eval()
 
@@ -299,37 +272,50 @@ class Solver(object):
                 y_valid = y_valid.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
-                y_pred, feature_t = self.model(x_valid)
+                logits = self.model(x_valid)
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_valid)
+                loss = self.criterion(logits, y_valid)
 
                 # record validation loss
                 valid_losses.append(loss.item())
 
-                # record predictions and true labels
-                predictions_list.append(y_pred)
-                targets_list.append(y_valid)
+                # since we are using BCEWithLogitsLoss
+                # logits --> probabilities --> labels
+                probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs)
 
-            all_preds = torch.cat(predictions_list, dim=0)
-            all_targets = torch.cat(targets_list, dim=0)
-            self.compute_accuracy(logits=all_preds,
-                                  target=all_targets,
-                                  train=False)
+                # record predictions and true labels
+                predictions = torch.cat([predictions, y_pred], dim=0)
+                targets = torch.cat([targets, y_valid], dim=0)
+
+            self.compute_metrics(predictions=predictions,
+                                 targets=targets,
+                                 train=False)
             
         # set the model back to training mode
         self.model.train()
 
-    def compute_accuracy(self, logits, target, train):
-        # compute predicted labels by taking the argmax along dimension 1 after applying softmax
-        predicted_labels = torch.argmax(torch.softmax(logits, dim=1), dim=1)
-
+    def compute_metrics(self, predictions, targets, train):
         # compute accuracy
-        accuracy = torch.sum(predicted_labels == target).item() / target.size(0)
+        # accuracy = torch.sum(predictions == targets).item() / (targets.size(0) * targets.size(1))
+
+        true_positives = torch.sum((predictions == 1) & (targets == 1)).item()
+        true_negatives = torch.sum((predictions == 0) & (targets == 0)).item()
+        false_positives = torch.sum((predictions == 1) & (targets == 0)).item()
+        false_negatives = torch.sum((predictions == 0) & (targets == 1)).item()
+
+        accuracy = (true_positives + true_negatives) / (true_positives + true_negatives 
+                                                        + false_positives + false_negatives + 1e-20)
+        precision = true_positives / (true_positives + false_positives + 1e-20)
+        recall = true_positives / (true_positives + false_negatives + 1e-20)
+        f1_score = 2 * (precision * recall) / (precision + recall + 1e-20)
+
 
         # print accuracy based on training or validation
         accuracy_type = "Train" if train else "Valid"
-        print(f"\n{accuracy_type} accuracy: {accuracy:.4f}")
+        print(f"\n{accuracy_type} accuracy: {accuracy:.3f} | "
+              f"precision: {precision:.3f} | recall: {recall:.3f} | f1_score: {f1_score:.3f} ")
 
 
 def get_args():
@@ -349,7 +335,7 @@ def get_args():
     parser.add_argument("--num_epochs", type=int, default=100,
                         help="the total number of training epochs")
 
-    parser.add_argument("--batch_size", type=int, default=2,
+    parser.add_argument("--batch_size", type=int, default=32,
                         help="the batch size for training and validation data")
 
     # https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/files/szymon_migacz-pytorch-performance-tuning-guide.pdf    
@@ -379,71 +365,91 @@ def get_args():
     parser.add_argument("--load_model", action="store_true",
                         help="determines whether to load the model from a checkpoint")
 
-    parser.add_argument("--checkpoint_path", type=str, default="./point-clouds/checkpoints", 
+    parser.add_argument("--checkpoint_path", type=str, default="./multilabel-classification/checkpoints", 
                         help="the path to save the trained model")
 
-    parser.add_argument("--num_classes", type=int, default=10,
+    parser.add_argument("--num_classes", type=int, default=16,
                         help="the number of classes to predict with the final Linear layer")
     #######################################################################################
 
     # data-path
     #######################################################################################
-    parser.add_argument("--raw_data_path", type=str, default="./point-clouds/data/raw/",
+    parser.add_argument("--raw_data_path", type=str, default="./multilabel-classification/data/apparel-images-dataset/",
                         help="path where to get the raw-dataset")
     #######################################################################################
 
     # data transformation
     #######################################################################################
-    parser.add_argument("--apply_transformations", action="store_true",
+    parser.add_argument("--apply_transformations", action="store_true", default=True,
                         help="indicates whether to apply transformations to images")
     #######################################################################################
 
     return parser.parse_args()
 
+
 # check if the script is being run as the main program
 if __name__ == "__main__":
+    # parse command line arguments
     args = get_args()
 
-    # if folder doesn't exist, then create it
+    # if the checkpoint folder doesn't exist, create it
     if not os.path.isdir(args.checkpoint_path):
         os.makedirs(args.checkpoint_path)
     
     # determine the device for training (use GPU if available, otherwise use CPU)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    # read the CSV file containing data for multi-label classification
+    df = pd.read_csv(filepath_or_buffer="./multilabel-classification/data/multilabel_classification(2).csv")
+
+    # specify the base image path
+    base_img_pth = Path("./multilabel-classification/data/images")
+
+    # filter the DataFrame to include only rows with existing image files
+    filtered_df = df[[os.path.isfile(base_img_pth / img_pth) for img_pth in df["Image_Name"]]]
+
+    # print the first image name in the filtered dataset
+    print(filtered_df.iloc[0]["Image_Name"])
+
+    # shuffle the dataset
+    filtered_df = shuffle(filtered_df)
+    
+    # split the dataset into training and testing sets
+    train_df, test_df = train_test_split(filtered_df, test_size=0.2)
+
+    # set skipcols of the dataframe
+    skipcols = 2
+
+    # set resize dimensions for image preprocessing
+    resize = 224
+
     # define data transformations for training and testing
     if args.apply_transformations:
-        train_transform = transforms.Compose([])
-        test_transform = transforms.Compose([])
+        train_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
+                                              transforms.RandomHorizontalFlip(p=0.5),
+                                              transforms.RandomVerticalFlip(p=0.5)])
+        test_transform = transforms.Compose([transforms.Resize(size=(resize, resize))])
     else:
         train_transform = None
         test_transform = None
 
     # create instances of the custom dataset for training and testing
-    train_dataset = CustomImageDataset(data_root=args.raw_data_path,
-                                       transform=train_transform, train=True)    
-    test_dataset = CustomImageDataset(data_root=args.raw_data_path,
-                                      transform=test_transform, train=False)
-    
+    train_dataset = CustomImageDataset(dataframe=train_df, skipcols=skipcols,
+                                       data_root=base_img_pth, transform=train_transform)    
+    test_dataset = CustomImageDataset(dataframe=test_df, skipcols=skipcols,
+                                      data_root=base_img_pth, transform=test_transform)
+        
     # create DataLoader instances for training and testing
     train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size,
                               shuffle=True, num_workers=args.workers)    
     test_loader = DataLoader(dataset=test_dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=args.workers)
 
-    # # visualize samples        
-    # for _, batch in enumerate(train_loader):
-    #     for x, y in zip(*batch):
-    #         key = [key for key, value 
-    #                in train_dataset.class_to_idx.items() 
-    #                if value == y.item()]
-    #         visualize_image(x.squeeze(), key[0])
-
-    # create an instance of the PointNet model and move it to the specified device
-    point_net = Model(num_classes=args.num_classes).to(device)
+    # create an instance of the MultiLabelImageClassifier model and move it to the specified device
+    net = MultiLabelImageClassifier(num_classes=args.num_classes).to(device)
     
     # define the optimizer and loss function for training the model
-    optimizer = torch.optim.Adam(params=point_net.parameters(), 
+    optimizer = torch.optim.Adam(params=net.parameters(), 
                                  lr=args.lr, betas=(0.9, 0.999))
     loss_fn = nn.BCEWithLogitsLoss()
 
@@ -452,7 +458,7 @@ if __name__ == "__main__":
                     trainloader=train_loader,
                     testloader=test_loader,
                     device=device,
-                    model=point_net,
+                    model=net,
                     optimizer=optimizer,
                     criterion=loss_fn,
                     patience=args.patience)
