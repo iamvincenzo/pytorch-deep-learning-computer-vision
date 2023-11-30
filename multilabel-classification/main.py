@@ -13,6 +13,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 
+from model import ResNet18
 from model import MultiLabelImageClassifier
 
 pd.set_option("display.max_rows", None)
@@ -72,56 +73,75 @@ class CustomImageDataset(Dataset):
         return len(self.df)
 
 
-class EarlyStopping:
-    """ 
+class EarlyStopping(object):
+    """
     Early stops the training if validation loss doesn't improve after a given patience.
     Copyright (c) 2018 Bjarte Mehus Sunde
     """
-    def __init__(self, patience=7, verbose=False, delta=0, path="./multilabel-classification/checkpoints/checkpoint.pt", trace_func=print):
+    def __init__(self, patience=5, delta=0, path="./multilabel-classification/checkpoints/checkpoint.pt", verbose=False):
         """
         Args:
-            patience (int): How long to wait after last time validation loss improved.
-                            Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement.
-                            Default: False
+            patience (int): How long to wait after the last time validation loss improved.
+                            Default: 5
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
                             Default: 0
             path (str): Path for the checkpoint to be saved to.
                             Default: 'checkpoint.pt'
-            trace_func (function): trace print function.
-                            Default: print
+            verbose (bool): If True, prints a message for each validation loss improvement.
+                            Default: False
         """
+        # initialize the parameters
         self.patience = patience
-        self.verbose = verbose
-        self.counter = 0
-        self.best_score = None
-        self.early_stop = False
-        self.val_loss_min = np.Inf
         self.delta = delta
         self.path = path
-        self.trace_func = trace_func
+        self.verbose = verbose
+
+        # counter to track the number of epochs without improvement
+        self.counter = 0
+
+        # best validation score initialized to None
+        self.best_score = None
+
+        # flag to indicate if early stopping criteria are met
+        self.early_stop = False
+
+        # minimum validation loss initialized to positive infinity
+        self.val_loss_min = float('inf')
 
     def __call__(self, val_loss, model):
-        score = -val_loss
-
+        # check if it's the first validation, or there is an improvement, or no improvement
         if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model)
-        elif score < self.best_score + self.delta:
-            self.counter += 1
-            self.trace_func(f"EarlyStopping counter: {self.counter} out of {self.patience}")
-            if self.counter >= self.patience:
-                self.early_stop = True
+            self._handle_first_validation(val_loss, model)
+        elif val_loss > self.best_score + self.delta:
+            self._handle_no_improvement(val_loss, model)
         else:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model)
-            self.counter = 0
+            self._handle_improvement(val_loss, model)
+
+    def _handle_first_validation(self, val_loss, model):
+        # handle the case of the first validation
+        self.best_score = val_loss
+        self.save_checkpoint(val_loss, model)
+
+    def _handle_no_improvement(self, val_loss, model):
+        # handle the case of no improvement in validation loss
+        self.counter += 1
+        print(f"EarlyStopping counter: {self.counter} out of {self.patience}")
+        if self.counter >= self.patience:
+            # if the counter exceeds patience, set the early_stop flag
+            self.early_stop = True
+
+    def _handle_improvement(self, val_loss, model):
+        # handle the case of an improvement in validation loss
+        self.counter = 0
+        self.best_score = val_loss
+        self.save_checkpoint(val_loss, model)
 
     def save_checkpoint(self, val_loss, model):
-        """Saves model when validation loss decrease."""
+        """Saves model when validation loss decreases."""
+        # save the model's state_dict if there is a decrease in validation loss
         if self.verbose:
-            self.trace_func(f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...")
-        torch.save(model.state_dict(), self.path)
+            print(f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model...")
+        torch.save(obj=model.state_dict(), f=self.path)
         self.val_loss_min = val_loss
 
 
@@ -445,8 +465,10 @@ if __name__ == "__main__":
     test_loader = DataLoader(dataset=test_dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=args.workers)
 
-    # create an instance of the MultiLabelImageClassifier model and move it to the specified device
-    net = MultiLabelImageClassifier(num_classes=args.num_classes).to(device)
+    # create an instance of the ResNet18 model and move it to the specified device
+    x = next(iter(train_loader))
+    net = ResNet18(input_size=x.shape[1:], output_size=args.num_classes).to(device)
+    # net = MultiLabelImageClassifier(num_classes=args.num_classes).to(device)
     
     # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=net.parameters(), 
