@@ -21,7 +21,7 @@ pd.set_option("display.max_columns", None)
 
 
 class CustomImageDataset(Dataset):
-    def __init__(self, dataframe, skipcols, data_root, transform):
+    def __init__(self, dataframe, skipcols, data_root, transform, resize):
         """
         Custom dataset for loading 2D images.
         https://www.kaggle.com/datasets/meherunnesashraboni/multi-label-image-classification-dataset
@@ -36,7 +36,7 @@ class CustomImageDataset(Dataset):
         self.skipcols = skipcols
         self.data_root = data_root
         self.transform = transform
-        self.toTensor = transforms.ToTensor()
+        self.resize = resize
 
     def __getitem__(self, index):
         """
@@ -57,9 +57,11 @@ class CustomImageDataset(Dataset):
                               dtype=torch.float32)
         
         if self.transform is not None:
-            img = self.transform(img)
-
-        img_tensor = self.toTensor(img)        
+            img_tensor = self.transform(img)
+        else:
+            transform = transforms.Compose([transforms.Resize(size=(self.resize, self.resize)),
+                                            transforms.ToTensor()])   
+            img_tensor = transform(img)
         
         return img_tensor, labels
 
@@ -369,8 +371,8 @@ def get_args():
     parser.add_argument("--lr", type=float, default=0.001,
                         help="the learning rate for optimization")
 
-    parser.add_argument("--loss", type=str, default="cel",
-                        choices=["cel"],
+    parser.add_argument("--loss", type=str, default="bcewll",
+                        choices=["bcewll"],
                         help="the loss function used for model optimization")
 
     parser.add_argument("--opt", type=str, default="Adam", 
@@ -401,7 +403,7 @@ def get_args():
 
     # data transformation
     #######################################################################################
-    parser.add_argument("--apply_transformations", action="store_true", default=True,
+    parser.add_argument("--apply_transformations", action="store_true", # default=True,
                         help="indicates whether to apply transformations to images")
     #######################################################################################
 
@@ -438,23 +440,30 @@ if __name__ == "__main__":
     skipcols = 2
 
     # set resize dimensions for image preprocessing
-    resize = 64
+    resize = 224
 
     # define data transformations for training and testing
     if args.apply_transformations:
         train_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
                                               transforms.RandomHorizontalFlip(p=0.5),
-                                              transforms.RandomVerticalFlip(p=0.5)])
-        test_transform = transforms.Compose([transforms.Resize(size=(resize, resize))])
+                                              transforms.RandomVerticalFlip(p=0.5),
+                                              transforms.RandomRotation(degrees=15),
+                                              transforms.ToTensor(),
+                                              transforms.Normalize([0.485, 0.456, 0.406], 
+                                                                   [0.229, 0.224, 0.225])])
+        test_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
+                                             transforms.ToTensor(),
+                                             transforms.Normalize([0.485, 0.456, 0.406],
+                                                                  [0.229, 0.224, 0.225])])
     else:
         train_transform = None
         test_transform = None
 
     # create instances of the custom dataset for training and testing
-    train_dataset = CustomImageDataset(dataframe=train_df, skipcols=skipcols,
-                                       data_root=base_img_pth, transform=train_transform)    
-    test_dataset = CustomImageDataset(dataframe=test_df, skipcols=skipcols,
-                                      data_root=base_img_pth, transform=test_transform)
+    train_dataset = CustomImageDataset(dataframe=train_df, skipcols=skipcols, data_root=base_img_pth, 
+                                       transform=train_transform, resize=resize)    
+    test_dataset = CustomImageDataset(dataframe=test_df, skipcols=skipcols, data_root=base_img_pth, 
+                                      transform=test_transform, resize=resize)
         
     # create DataLoader instances for training and testing
     train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size,
