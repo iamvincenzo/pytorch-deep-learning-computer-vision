@@ -403,7 +403,7 @@ def get_args():
 
     # data transformation
     #######################################################################################
-    parser.add_argument("--apply_transformations", action="store_true", # default=True,
+    parser.add_argument("--apply_transformations", action="store_true", default=True,
                         help="indicates whether to apply transformations to images")
     #######################################################################################
 
