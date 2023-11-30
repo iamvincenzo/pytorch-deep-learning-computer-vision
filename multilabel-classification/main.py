@@ -23,6 +23,7 @@ class CustomImageDataset(Dataset):
     def __init__(self, dataframe, skipcols, data_root, transform):
         """
         Custom dataset for loading 2D images.
+        https://www.kaggle.com/datasets/meherunnesashraboni/multi-label-image-classification-dataset
 
         Args:
             data_root (str): Root directory of the dataset.
@@ -335,7 +336,7 @@ def get_args():
     parser.add_argument("--num_epochs", type=int, default=100,
                         help="the total number of training epochs")
 
-    parser.add_argument("--batch_size", type=int, default=32,
+    parser.add_argument("--batch_size", type=int, default=16,
                         help="the batch size for training and validation data")
 
     # https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/files/szymon_migacz-pytorch-performance-tuning-guide.pdf    
@@ -386,7 +387,6 @@ def get_args():
 
     return parser.parse_args()
 
-
 # check if the script is being run as the main program
 if __name__ == "__main__":
     # parse command line arguments
@@ -421,7 +421,7 @@ if __name__ == "__main__":
     skipcols = 2
 
     # set resize dimensions for image preprocessing
-    resize = 224
+    resize = 64
 
     # define data transformations for training and testing
     if args.apply_transformations:

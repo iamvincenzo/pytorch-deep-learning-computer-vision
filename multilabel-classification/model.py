@@ -14,7 +14,7 @@ class MultiLabelImageClassifier(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         
         # fully connected layers
-        self.fc1 = nn.Linear(512 * 14 * 14, 1024)  # Adjusted input size
+        self.fc1 = nn.Linear(8192, 1024)  # Adjusted input size
         self.fc2 = nn.Linear(1024, num_classes)
 
         # dropout layer to prevent overfitting
@@ -27,7 +27,8 @@ class MultiLabelImageClassifier(nn.Module):
         x = self.pool(F.relu(self.conv4(x)))
                 
         # flatten the input for the fully connected layers
-        x = x.view(-1, 512 * 14 * 14)  # Adjusted view size
+        x = x.view(x.size(0), -1)
+        # print(x.shape)
         
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
