@@ -428,9 +428,6 @@ if __name__ == "__main__":
     # filter the DataFrame to include only rows with existing image files
     filtered_df = df[[os.path.isfile(base_img_pth / img_pth) for img_pth in df["Image_Name"]]]
 
-    # print the first image name in the filtered dataset
-    print(filtered_df.iloc[0]["Image_Name"])
-
     # shuffle the dataset
     filtered_df = shuffle(filtered_df)
     
@@ -466,8 +463,8 @@ if __name__ == "__main__":
                              shuffle=False, num_workers=args.workers)
 
     # create an instance of the ResNet18 model and move it to the specified device
-    x = next(iter(train_loader))
-    net = ResNet18(input_size=x.shape[1:], output_size=args.num_classes).to(device)
+    x, _ = next(iter(train_loader))
+    net = ResNet18(input_size=x[0].shape, output_size=args.num_classes).to(device)
     # net = MultiLabelImageClassifier(num_classes=args.num_classes).to(device)
     
     # define the optimizer and loss function for training the model
