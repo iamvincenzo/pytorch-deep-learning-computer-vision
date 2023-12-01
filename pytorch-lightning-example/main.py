@@ -139,6 +139,7 @@ class LitModel(pl.LightningModule):
         self.train_labels_list.append(labels)
         self.train_step_outputs.append(loss)
 
+        # log generated images to TensorBoard
         # accuracy = self.accuracy(preds, labels)
         # f1_score = self.f1_score(preds, labels)
         # self.log_dict(
@@ -154,6 +155,9 @@ class LitModel(pl.LightningModule):
         return loss
 
     def on_train_epoch_end(self):
+        """
+        Actions to perform at the end of each training epoch.
+        """
         preds = torch.cat(self.train_preds_list, dim=0)
         labels = torch.cat(self.train_labels_list, dim=0)
         epoch_mean = torch.stack(self.train_step_outputs).mean()
