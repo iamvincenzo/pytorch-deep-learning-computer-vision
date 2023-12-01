@@ -1,3 +1,4 @@
+import os
 import torch
 import torchvision
 import torchmetrics
@@ -9,7 +10,9 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.profilers import PyTorchProfiler
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import RichProgressBar
+# from pytorch_lightning.profilers import PyTorchProfiler
 
 
 # hyper-parameters
@@ -37,7 +40,9 @@ class LitModel(pl.LightningModule):
         super(LitModel, self).__init__()
         self.l1 = nn.Linear(input_size, hidden_size)
         self.l2 = nn.Linear(hidden_size, num_classes)
-        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
+        self.accuracy = torchmetrics.Accuracy(
+            task="multiclass", num_classes=num_classes
+        )
         self.f1_score = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
         self.train_preds_list = []
         self.valid_preds_list = []
@@ -56,19 +61,21 @@ class LitModel(pl.LightningModule):
         train_dataset = torchvision.datasets.MNIST(
             root="./pytorch-lightning-example/data",
             train=True,
-            transform=transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.ToTensor()
-            ]),
-            download=True
+            transform=transforms.Compose(
+                [
+                    # transforms.RandomHorizontalFlip(p=0.5),
+                    # transforms.RandomVerticalFlip(p=0.5),
+                    transforms.ToTensor(),
+                ]
+            ),
+            download=True,
         )
         train_loader = DataLoader(
             dataset=train_dataset,
             batch_size=batch_size,
-            num_workers=15,
+            num_workers=os.cpu_count(),
             persistent_workers=True,
-            shuffle=True
+            shuffle=True,
         )
 
         return train_loader
@@ -83,17 +90,15 @@ class LitModel(pl.LightningModule):
         valid_dataset = torchvision.datasets.MNIST(
             root="./pytorch-lightning-example/data",
             train=False,
-            transform=transforms.Compose([
-                transforms.ToTensor()
-            ]),
-            download=True
+            transform=transforms.Compose([transforms.ToTensor()]),
+            download=True,
         )
         valid_loader = DataLoader(
             dataset=valid_dataset,
             batch_size=batch_size,
-            num_workers=15,
+            num_workers=os.cpu_count(),
             persistent_workers=True,
-            shuffle=False
+            shuffle=False,
         )
 
         return valid_loader
@@ -164,9 +169,17 @@ class LitModel(pl.LightningModule):
         
         accuracy = self.accuracy(preds, labels)
         f1_score = self.f1_score(preds, labels)
-        self.log_dict({"train_loss": epoch_mean, "train_accuracy": accuracy, "train_f1_score": f1_score},
-                      on_step=False, on_epoch=True, prog_bar=True)
-        
+        self.log_dict(
+            {
+                "train_loss": epoch_mean,
+                "train_accuracy": accuracy,
+                "train_f1_score": f1_score,
+            },
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+
         # free up the memory
         self.train_preds_list.clear()
         self.train_labels_list.clear()
@@ -188,15 +201,21 @@ class LitModel(pl.LightningModule):
         preds = self.forward(images)
         loss = F.cross_entropy(input=preds, target=labels)
 
-        self.valid_preds_list.append(preds)
-        self.valid_labels_list.append(labels)
-        self.valid_step_outputs.append(loss)
+        # self.valid_preds_list.append(preds)
+        # self.valid_labels_list.append(labels)
+        # self.valid_step_outputs.append(loss)
 
         accuracy = self.accuracy(preds, labels)
         f1_score = self.f1_score(preds, labels)
         self.log_dict(
-            {"valid_loss": loss, "valid_accuracy": accuracy, "valid_f1_score": f1_score},
-            on_step=False, on_epoch=True, prog_bar=True
+            {
+                "valid_loss": loss,
+                "valid_accuracy": accuracy,
+                "valid_f1_score": f1_score,
+            },
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
         )
 
         return loss
@@ -204,21 +223,47 @@ class LitModel(pl.LightningModule):
 
 # check if the script is being run as the main program
 if __name__ == "__main__":
-    logger = TensorBoardLogger(save_dir="./pytorch-lightning-example/tb_logs", name="mnist_model_v1")
+    # instantiate the TensorBoardLogger
+    logger = TensorBoardLogger(
+        save_dir="./pytorch-lightning-example/tb_logs", name="mnist_model_v1"
+    )
 
-    # profiler = PyTorchProfiler(
-    #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
-    #     on_trace_ready=torch.profiler.tensorboard_trace_handler("./pytorch-lightning-example/tb_logs/profiler0"),
-    #     record_shapes=True,
-    #     profile_memory=True,
-    #     with_stack=True
-    # )
+    # define the EarlyStopping callback
+    early_stop_callback = EarlyStopping(
+        monitor="valid_loss", patience=2, verbose=True, mode="min"
+    )
 
-    early_stop_callback = EarlyStopping(monitor="valid_loss", patience=5, verbose=True, mode="min")
+    # define the ModelCheckpoint callback
+    checkpoint_callback = ModelCheckpoint(
+        monitor="valid_loss",
+        mode="min",
+        save_top_k=1,
+        # dirpath="./pytorch-lightning-example/tb_logs/checkpoints/",
+        filename="model-{epoch:02d}-{valid_loss:.4f}",
+    )
 
-    trainer = Trainer(fast_dev_run=False, logger=logger, min_epochs=1, # profiler="simple",
-                      max_epochs=num_epochs, accelerator="cpu", callbacks=[early_stop_callback])
+    # instantiate the Trainer with both EarlyStopping and ModelCheckpoint callbacks
+    trainer = Trainer(
+        fast_dev_run=False,
+        logger=logger,
+        min_epochs=1,
+        max_epochs=num_epochs,
+        accelerator="cpu",
+        enable_checkpointing=True,
+        callbacks=[
+            checkpoint_callback,
+            RichProgressBar(leave=True),
+            early_stop_callback,
+        ],
+    )
 
-    model = LitModel(input_size=input_size, hidden_size=hidden_size, num_classes=num_classes)
+    # instantiate the LitModel
+    model = LitModel(
+        input_size=input_size, hidden_size=hidden_size, num_classes=num_classes
+    )
 
-    trainer.fit(model=model)
+    # train the model
+    trainer.fit(
+        model=model,
+        # ckpt_path="./pytorch-lightning-example/tb_logs/mnist_model_v1/version_0/checkpoints/epoch=10-step=20625.ckpt",
+    )
