@@ -242,7 +242,7 @@ if __name__ == "__main__":
         filename="model-{epoch:02d}-{valid_loss:.4f}",
     )
 
-    # instantiate the Trainer with both EarlyStopping and ModelCheckpoint callbacks
+    # instantiate the Trainer callbacks
     trainer = Trainer(
         fast_dev_run=False,
         logger=logger,
