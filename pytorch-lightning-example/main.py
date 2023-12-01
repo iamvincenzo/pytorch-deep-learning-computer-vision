@@ -40,16 +40,16 @@ class LitModel(pl.LightningModule):
         super(LitModel, self).__init__()
         self.l1 = nn.Linear(input_size, hidden_size)
         self.l2 = nn.Linear(hidden_size, num_classes)
+        
         self.accuracy = torchmetrics.Accuracy(
             task="multiclass", num_classes=num_classes
         )
-        self.f1_score = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+        self.f1_score = torchmetrics.F1Score(
+            task="multiclass", num_classes=num_classes
+        )
         self.train_preds_list = []
-        self.valid_preds_list = []
         self.train_labels_list = []
-        self.valid_labels_list = []
         self.train_step_outputs = []
-        self.valid_step_outputs = []
 
     def train_dataloader(self):
         """
@@ -201,10 +201,6 @@ class LitModel(pl.LightningModule):
         preds = self.forward(images)
         loss = F.cross_entropy(input=preds, target=labels)
 
-        # self.valid_preds_list.append(preds)
-        # self.valid_labels_list.append(labels)
-        # self.valid_step_outputs.append(loss)
-
         accuracy = self.accuracy(preds, labels)
         f1_score = self.f1_score(preds, labels)
         self.log_dict(
@@ -230,16 +226,15 @@ if __name__ == "__main__":
 
     # define the EarlyStopping callback
     early_stop_callback = EarlyStopping(
-        monitor="valid_loss", patience=2, verbose=True, mode="min"
+        monitor="valid_loss", patience=5, verbose=False, mode="min"
     )
 
     # define the ModelCheckpoint callback
     checkpoint_callback = ModelCheckpoint(
         monitor="valid_loss",
         mode="min",
-        save_top_k=1,
-        # dirpath="./pytorch-lightning-example/tb_logs/checkpoints/",
-        filename="model-{epoch:02d}-{valid_loss:.4f}",
+        save_top_k=2,
+        filename="model-{epoch:03d}-{valid_loss:.4f}",
     )
 
     # instantiate the Trainer callbacks
@@ -251,8 +246,8 @@ if __name__ == "__main__":
         accelerator="cpu",
         enable_checkpointing=True,
         callbacks=[
-            checkpoint_callback,
             RichProgressBar(leave=True),
+            checkpoint_callback,
             early_stop_callback,
         ],
     )
