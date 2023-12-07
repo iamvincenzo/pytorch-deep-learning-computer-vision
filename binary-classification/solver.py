@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 from early_stopping import EarlyStopping
+from plotting_utils import plot_confusion_matrix
 
 
 class Solver(object):
@@ -95,12 +96,14 @@ class Solver(object):
                 predictions = torch.cat([predictions, y_pred], dim=0)
                 targets = torch.cat([targets, y_train], dim=0)
 
-            self.compute_metrics(predictions=predictions,
+            self.compute_metrics(epoch=epoch, 
+                                 batch_idx=batch_idx, 
+                                 predictions=predictions,
                                  targets=targets,
                                  train=True)
 
             # validate the model on the validation set
-            self.valid_net(valid_losses=valid_losses)
+            self.valid_net(epoch=epoch, valid_losses=valid_losses)
 
             # print training/validation statistics
             # calculate average loss over an epoch
@@ -136,7 +139,7 @@ class Solver(object):
         # free up system resources used by the writer
         self.writer.close() 
 
-    def valid_net(self, valid_losses):
+    def valid_net(self, epoch, valid_losses):
         """
         Validates the neural network on the specified DataLoader for validation data.
 
@@ -181,14 +184,16 @@ class Solver(object):
                 predictions = torch.cat([predictions, y_pred], dim=0)
                 targets = torch.cat([targets, y_valid], dim=0)
 
-            self.compute_metrics(predictions=predictions,
+            self.compute_metrics(epoch=epoch,
+                                 batch_idx=1,
+                                 predictions=predictions,
                                  targets=targets,
                                  train=False)
             
         # set the model back to training mode
         self.model.train()
 
-    def compute_metrics(self, predictions, targets, train):
+    def compute_metrics(self, epoch, batch_idx, predictions, targets, train):
         # compute accuracy
         # accuracy = torch.sum(predictions == targets).item() / (targets.size(0) * targets.size(1))
 
@@ -202,9 +207,24 @@ class Solver(object):
         precision = true_positives / (true_positives + false_positives + 1e-20)
         recall = true_positives / (true_positives + false_negatives + 1e-20)
         f1_score = 2 * (precision * recall) / (precision + recall + 1e-20)
+        
+        # create the confusion matrix
+        confusion_matrix = torch.tensor([[true_negatives, false_positives], 
+                                         [false_negatives, true_positives]])
 
 
         # print accuracy based on training or validation
-        accuracy_type = "Train" if train else "Valid"
-        print(f"\n{accuracy_type} accuracy: {accuracy:.3f} | "
+        metric_type = "train" if train else "valid"
+        print(f"\n{metric_type} accuracy: {accuracy:.3f} | "
               f"precision: {precision:.3f} | recall: {recall:.3f} | f1_score: {f1_score:.3f} ")
+        
+        print(f"\nConfusion_matrix: \n{confusion_matrix}")
+        
+        self.writer.add_scalar(f"{metric_type}-accuracy", accuracy, epoch * len(self.train_loader) + batch_idx)
+        self.writer.add_scalar(f"{metric_type}-precision", precision, epoch * len(self.train_loader) + batch_idx)
+        self.writer.add_scalar(f"{metric_type}-recall", recall, epoch * len(self.train_loader) + batch_idx)
+        self.writer.add_scalar(f"{metric_type}-f1_score", f1_score, epoch * len(self.train_loader) + batch_idx)
+
+        fig = plot_confusion_matrix(tn=true_negatives, fp=false_positives, 
+                                    fn=false_negatives, tp=true_positives)
+        self.writer.add_figure(f"{metric_type}-confusion_matrix", fig, global_step=epoch * len(self.train_loader) + batch_idx)        
