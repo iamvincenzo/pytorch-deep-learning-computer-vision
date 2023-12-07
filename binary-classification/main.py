@@ -23,10 +23,10 @@ from custom_dataset import CleanDirtyRoadDataset
 
 # reproducibility
 seed = 42
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
+# random.seed(seed)
+# np.random.seed(seed)
+# torch.manual_seed(seed)
+# torch.cuda.manual_seed(seed)
 # torch.backends.cudnn.benchmark = False
 # torch.backends.cudnn.deterministic = True
 
@@ -153,15 +153,16 @@ def main(args):
     finetuning = True
     
     if finetuning:
-        # model = models.resnet18(pretrained=True)
-        model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+        model = models.resnet18(pretrained=True)
+        # model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
         
         # freeze all params
-        for params in model.parameters():
-            params.requires_grad_ = False
+        for param in model.parameters():
+            param.requires_grad = False
         
         # add a new final layer
-        nr_filters = model.fc.in_features  # number of input features of last layer
+        # number of input features of last layer
+        nr_filters = model.fc.in_features
         model.fc = nn.Linear(nr_filters, 1)
         model = model.to(device)
     else:
