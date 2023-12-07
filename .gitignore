@@ -165,3 +165,5 @@ trash-stuff
 temp.py
 __pycache__
 */tb_logs
+*/runs
+*/statistics
