@@ -1,6 +1,7 @@
 import os
 import torch
 import random
+import json
 import argparse
 import torchvision
 import numpy as np
@@ -23,10 +24,11 @@ from custom_dataset import CleanDirtyRoadDataset
 
 # reproducibility
 seed = 42
-# random.seed(seed)
-# np.random.seed(seed)
-# torch.manual_seed(seed)
-# torch.cuda.manual_seed(seed)
+
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
 # torch.backends.cudnn.benchmark = False
 # torch.backends.cudnn.deterministic = True
 
@@ -36,7 +38,7 @@ def get_args():
 
     # model-infos
     #######################################################################################
-    parser.add_argument("--run_name", type=str, default="test_1",
+    parser.add_argument("--run_name", type=str, default="test_default",
                         help="the name assigned to the current run")
 
     parser.add_argument("--model_name", type=str, default="binaryclassif_img_model",
@@ -45,7 +47,7 @@ def get_args():
 
     # training-parameters (1)
     #######################################################################################
-    parser.add_argument("--num_epochs", type=int, default=100,
+    parser.add_argument("--num_epochs", type=int, default=200,
                         help="the total number of training epochs")
 
     parser.add_argument("--batch_size", type=int, default=16,
@@ -96,6 +98,11 @@ def get_args():
     parser.add_argument("--apply_transformations", action="store_true", # default=True,
                         help="indicates whether to apply transformations to images")
     #######################################################################################
+
+    # # Google Colab
+    # #######################################################################################
+    # parser.add_argument("-f", "--file", required=False)
+    # #######################################################################################
 
     return parser.parse_args()
 
@@ -153,8 +160,8 @@ def main(args):
     finetuning = True
     
     if finetuning:
-        model = models.resnet18(pretrained=True)
-        # model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+        # model = models.resnet18(pretrained=True)
+        model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
         
         # freeze all params
         for param in model.parameters():
@@ -163,18 +170,19 @@ def main(args):
         # add a new final layer
         # number of input features of last layer
         nr_filters = model.fc.in_features
-        model.fc = nn.Linear(nr_filters, 1)
+        model.fc = nn.Linear(nr_filters, args.num_classes)
         model = model.to(device)
-    else:
-        # create an instance of the model and move it to the specified device
-        model = BinaryImageClassifier(output_size=args.num_classes).to(device)
+    # else:
+    #     # create an instance of the model and move it to the specified device
+    #     model = BinaryImageClassifier(output_size=args.num_classes).to(device)
 
     images, _ = next(iter(train_loader))
+    images = images.to(device)
     img_grid = torchvision.utils.make_grid(images)
-    writer.add_image("Sample images", img_grid, global_step=0)
+    writer.add_image("sample-images", img_grid, global_step=0)
 
     print("\nModel: ")
-    pms.summary(model, torch.zeros(images.shape), max_depth=5, print_summary=True)
+    pms.summary(model, torch.zeros(images.shape, device=device), max_depth=5, print_summary=True)
 
     # define the optimizer and loss function for training the model
     optimizer = torch.optim.Adam(params=model.parameters(),
@@ -194,6 +202,11 @@ def main(args):
     
     # train the neural network
     solver.train_net()
+
+    model_reslts = solver.eval_model()
+    model_reslts["test_name"] = args.run_name
+    with open(f"./statistics/{args.run_name}-model_reslts.json", "w") as outfile:
+        json.dump(model_reslts, outfile)
 
 
 # check if the script is being run as the main program
