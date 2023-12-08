@@ -42,6 +42,7 @@ class Solver(object):
             "test_name" : "",
             "model_name": self.model.__class__.__name__,
             "train_time": 0.0,
+            "tot_epochs": 0,
             "model_loss": 0.0,
             "model_acc": 0.0
         }
@@ -149,10 +150,11 @@ class Solver(object):
                 print("Early stopping...")
                 break
         
-        print("\nTraining model Done...\n")
+        print("\nTraining model Done...")
 
         train_time_end = timer()
 
+        self.model_reslts["tot_epochs"] = epoch + 1
         self.model_reslts["train_time"] = train_time_end - train_time_start
 
         # write all remaining data in the buffer
