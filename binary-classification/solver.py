@@ -134,10 +134,11 @@ class Solver(object):
             print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} | "
                   f"validation-loss: {valid_loss:.4f}")
             
-            self.writer.add_scalar("training-loss", train_loss, 
-                                   epoch * len(self.train_loader) + batch_idx)
-            self.writer.add_scalar("validation-loss", valid_loss, 
-                                   epoch * len(self.test_loader) + batch_idx)
+            if self.writer is not None:
+                self.writer.add_scalar("training-loss", train_loss, 
+                                    epoch * len(self.train_loader) + batch_idx)
+                self.writer.add_scalar("validation-loss", valid_loss, 
+                                    epoch * len(self.test_loader) + batch_idx)
 
             # clear lists to track next epoch
             train_losses = []
@@ -157,10 +158,11 @@ class Solver(object):
         self.model_reslts["tot_epochs"] = epoch + 1
         self.model_reslts["train_time"] = train_time_end - train_time_start
 
-        # write all remaining data in the buffer
-        self.writer.flush()
-        # free up system resources used by the writer
-        self.writer.close() 
+        if self.writer is not None:
+            # write all remaining data in the buffer
+            self.writer.flush()
+            # free up system resources used by the writer
+            self.writer.close() 
 
     def valid_net(self, epoch, valid_losses):
         """
@@ -276,7 +278,7 @@ class Solver(object):
             self.model_reslts["model_acc"] = accuracy
             self.model_reslts["model_loss"] = eval_loss
 
-            return self.model_reslts
+        return self.model_reslts
 
     def compute_metrics(self, epoch, batch_idx, predictions, targets, train):
         # compute accuracy
@@ -315,24 +317,25 @@ class Solver(object):
         print(f"\nConfusion_matrix: \n{confusion_matrix}")
         # print(f"\nNormalized Confusion_matrix: \n{normalized_confusion_matrix}")
         
-        self.writer.add_scalar(f"{metric_type}-accuracy", accuracy, epoch * len(self.train_loader) + batch_idx)
-        self.writer.add_scalar(f"{metric_type}-precision", precision, epoch * len(self.train_loader) + batch_idx)
-        self.writer.add_scalar(f"{metric_type}-recall", recall, epoch * len(self.train_loader) + batch_idx)
-        self.writer.add_scalar(f"{metric_type}-f1_score", f1_score, epoch * len(self.train_loader) + batch_idx)
+        if self.writer is not None:
+            self.writer.add_scalar(f"{metric_type}-accuracy", accuracy, epoch * len(self.train_loader) + batch_idx)
+            self.writer.add_scalar(f"{metric_type}-precision", precision, epoch * len(self.train_loader) + batch_idx)
+            self.writer.add_scalar(f"{metric_type}-recall", recall, epoch * len(self.train_loader) + batch_idx)
+            self.writer.add_scalar(f"{metric_type}-f1_score", f1_score, epoch * len(self.train_loader) + batch_idx)
 
-        fig = plot_confusion_matrix(tn=true_negatives, fp=false_positives, 
-                                    fn=false_negatives, tp=true_positives)
-        self.writer.add_figure(f"{metric_type}-confusion_matrix", fig, global_step=epoch * len(self.train_loader) + batch_idx)   
+            fig = plot_confusion_matrix(tn=true_negatives, fp=false_positives, 
+                                        fn=false_negatives, tp=true_positives)
+            self.writer.add_figure(f"{metric_type}-confusion_matrix", fig, global_step=epoch * len(self.train_loader) + batch_idx)   
 
-        roc = ROC(task="binary")
-        fpr, tpr, thresholds = roc(predictions.detach().cpu(), 
-                                   targets.type(torch.LongTensor).detach().cpu())
-        roc_auc = auc(fpr, tpr)
-        fig = plot_roc(fpr=fpr, tpr=tpr, auc=roc_auc)
-        self.writer.add_figure(f"{metric_type}-ROC", fig, global_step=epoch * len(self.train_loader) + batch_idx)
+            roc = ROC(task="binary")
+            fpr, tpr, thresholds = roc(predictions.detach().cpu(), 
+                                    targets.type(torch.LongTensor).detach().cpu())
+            roc_auc = auc(fpr, tpr)
+            fig = plot_roc(fpr=fpr, tpr=tpr, auc=roc_auc)
+            self.writer.add_figure(f"{metric_type}-ROC", fig, global_step=epoch * len(self.train_loader) + batch_idx)
 
-        pr_curve = PrecisionRecallCurve(task="binary", thresholds=2)
-        pr, rc, thresholds = pr_curve(predictions.detach().cpu(), 
-                                      targets.type(torch.LongTensor).detach().cpu())
-        fig = plot_prc(precision=pr, recall=rc)
-        self.writer.add_figure(f"{metric_type}-PRC", fig, global_step=epoch * len(self.train_loader) + batch_idx)
+            pr_curve = PrecisionRecallCurve(task="binary", thresholds=2)
+            pr, rc, thresholds = pr_curve(predictions.detach().cpu(), 
+                                        targets.type(torch.LongTensor).detach().cpu())
+            fig = plot_prc(precision=pr, recall=rc)
+            self.writer.add_figure(f"{metric_type}-PRC", fig, global_step=epoch * len(self.train_loader) + batch_idx)
