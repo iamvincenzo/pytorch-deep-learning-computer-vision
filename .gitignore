@@ -167,4 +167,5 @@ __pycache__
 */tb_logs
 */runs
 */statistics
-*/old_runs
+*/runs
+*/keras_logs
