@@ -39,7 +39,7 @@ def get_args():
                         help="the loss function used for model optimization")
 
     parser.add_argument("--opt", type=str, default="Adam", 
-                        choices=["SGD", "Adam"],
+                        choices=["SGD", "Adam", "RMSprop"],
                         help="the optimizer used for training")
 
     parser.add_argument("--patience", type=int, default=5,
@@ -66,7 +66,7 @@ def get_args():
 
     # data transformation
     #######################################################################################
-    parser.add_argument("--apply_transformations", action="store_true", # default=True,
+    parser.add_argument("--apply_transformations", action="store_true", default=True,
                         help="indicates whether to apply transformations to images")
     #######################################################################################
 
