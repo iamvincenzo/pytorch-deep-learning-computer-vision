@@ -13,7 +13,7 @@ import torch.nn as nn
 from pathlib import Path
 from datetime import datetime
 from torchvision import  models
-# from torchvision import transforms
+from torchvision import transforms
 # import pytorch_model_summary as pms
 from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
@@ -60,22 +60,23 @@ def kfold_main(args):
     
     resize = 224
 
-    # # define data transformations for training and testing
-    # if args.apply_transformations:
-    #     train_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
-    #                                           transforms.RandomHorizontalFlip(p=0.5),
-    #                                           transforms.RandomVerticalFlip(p=0.5),
-    #                                           transforms.RandomRotation(degrees=15),
-    #                                           transforms.ToTensor(),
-    #                                           transforms.Normalize([0.485, 0.456, 0.406], 
-    #                                                                [0.229, 0.224, 0.225])])
-    #     test_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
-    #                                          transforms.ToTensor(),
-    #                                          transforms.Normalize([0.485, 0.456, 0.406],
-    #                                                               [0.229, 0.224, 0.225])])
-    # else:
-    #     train_transform = None
-    #     test_transform = None
+    # define data transformations for training and testing
+    if args.apply_transformations:
+        train_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
+                                            #   transforms.TrivialAugmentWide(num_magnitude_bins=31),
+                                              transforms.RandomHorizontalFlip(p=0.5),
+                                              transforms.RandomVerticalFlip(p=0.5),
+                                              transforms.RandomRotation(degrees=15),
+                                              transforms.ToTensor(),
+                                              transforms.Normalize([0.485, 0.456, 0.406], 
+                                                                   [0.229, 0.224, 0.225])])
+        test_transform = transforms.Compose([transforms.Resize(size=(resize, resize)),
+                                             transforms.ToTensor(),
+                                             transforms.Normalize([0.485, 0.456, 0.406],
+                                                                  [0.229, 0.224, 0.225])])
+    else:
+        train_transform = None
+        test_transform = None
 
     # create instances of the custom dataset for training and testing
     dataset = CleanDirtyRoadDataset(X=df["filename"], y=df["label"], 
@@ -104,15 +105,29 @@ def kfold_main(args):
         print(f"FOLD {fold}")
         print("--------------------------------")
 
-        # Sample elements randomly from a given list of ids, no replacement.
-        train_subsampler = SubsetRandomSampler(train_ids)
-        test_subsampler = SubsetRandomSampler(test_ids)
+        # # Sample elements randomly from a given list of ids, no replacement.
+        # train_subsampler = SubsetRandomSampler(train_ids)
+        # test_subsampler = SubsetRandomSampler(test_ids)
 
-        # Define data loaders for training and testing data in this fold
-        train_loader = DataLoader(dataset, batch_size=args.batch_size, pin_memory=pin,
-                                  num_workers=os.cpu_count(), sampler=train_subsampler)
-        test_loader = DataLoader(dataset, batch_size=args.batch_size, pin_memory=pin, 
-                                 num_workers=os.cpu_count(), sampler=test_subsampler)
+        # # Define data loaders for training and testing data in this fold
+        # train_loader = DataLoader(dataset, batch_size=args.batch_size, pin_memory=pin,
+        #                           num_workers=os.cpu_count(), sampler=train_subsampler)
+        # test_loader = DataLoader(dataset, batch_size=args.batch_size, pin_memory=pin, 
+        #                          num_workers=os.cpu_count(), sampler=test_subsampler)
+
+        train_dataset_fold = CleanDirtyRoadDataset(X=df["filename"].iloc[train_ids],
+                                                   y=df["label"].iloc[train_ids],
+                                                   resize=resize, data_root=base_img_pth,
+                                                   transform=train_transform)
+        test_dataset_fold = CleanDirtyRoadDataset(X=df["filename"].iloc[test_ids], 
+                                                  y=df["label"].iloc[test_ids], 
+                                                  resize=resize, data_root=base_img_pth,
+                                                  transform=test_transform)
+
+        train_loader = DataLoader(train_dataset_fold, batch_size=args.batch_size, pin_memory=pin,
+                                  num_workers=os.cpu_count(), shuffle=True)
+        test_loader = DataLoader(test_dataset_fold, batch_size=args.batch_size, pin_memory=pin,
+                                 num_workers=os.cpu_count(), shuffle=False)
 
         # Init the neural network
         model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
@@ -125,10 +140,10 @@ def kfold_main(args):
         # number of input features of last layer
         nr_filters = model.fc.in_features
         model.fc = nn.Linear(nr_filters, args.num_classes)
-        # # to avoid weight leaks
-        # ###########################
-        # model.fc.reset_parameters()
-        # ###########################
+        # to avoid weight leaks
+        ###########################
+        model.fc.reset_parameters()
+        ###########################
         
         model = model.to(device)
 
@@ -148,6 +163,7 @@ def kfold_main(args):
         # define the optimizer and loss function for training the model
         optimizer = torch.optim.Adam(params=model.parameters(),
                                      lr=args.lr, betas=(0.9, 0.999))
+        # optimizer = torch.optim.RMSprop(params=model.parameters(), lr=0.004014796)
         loss_fn = nn.BCEWithLogitsLoss()
 
         # create an instance of the Solver class for training and validation
@@ -171,6 +187,14 @@ def kfold_main(args):
         print(f"\nAccuracy for fold {fold}: {model_results['model_acc'] * 100:.3f}%")
         print("\n--------------------------------")
         results[fold] = model_results # dict of dicts
+
+        del model
+        del optimizer
+        del loss_fn
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     with open(f"./statistics/{args.run_name}-kfold-model_results.json", "w") as outfile:
         json.dump(results, outfile)
