@@ -114,6 +114,8 @@ class Solver(object):
                 predictions = torch.cat([predictions, y_pred], dim=0)
                 targets = torch.cat([targets, y_train], dim=0)
 
+            loop.close()
+            
             self.compute_metrics(epoch=epoch, 
                                  batch_idx=batch_idx, 
                                  predictions=predictions,
@@ -210,6 +212,8 @@ class Solver(object):
                 predictions = torch.cat([predictions, y_pred], dim=0)
                 targets = torch.cat([targets, y_valid], dim=0)
 
+            loop.close()
+            
             self.compute_metrics(epoch=epoch,
                                  batch_idx=1,
                                  predictions=predictions,
@@ -263,6 +267,8 @@ class Solver(object):
                 predictions = torch.cat([predictions, y_pred], dim=0)
                 targets = torch.cat([targets, y_valid], dim=0)
 
+            loop.close()
+            
             eval_loss = np.average(eval_losses)
 
             targets = targets.squeeze()
