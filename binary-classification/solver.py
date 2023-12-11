@@ -171,6 +171,7 @@ class Solver(object):
         Records validation losses in the provided list.
 
         Args:
+            epoch (int): The current epoch during validation.
             valid_losses (list): List to record validation losses.
         """
         print(f"\nStarting validation...\n")
@@ -220,18 +221,11 @@ class Solver(object):
 
     def eval_model(self):
         """
-        Evaluates a given model on a given dataset.
-
-        Args:
-            model (torch.nn.Module): A PyTorch model capable of making predictions on data_loader.
-            data_loader (torch.utils.data.DataLoader): The target dataset to predict on.
-            loss_fn (torch.nn.Module): The loss function of model.
-            accuracy_fn: An accuracy function to compare the models predictions to the truth labels.
-            device (str, optional): Target device to compute on. Defaults to device.
+        Evaluates the neural network on the validation set.
 
         Returns:
-            (dict): Results of model making predictions on data_loader.
-        """    
+            dict: A dictionary containing evaluation results, including model accuracy and loss.
+        """
         print(f"\nStarting final evaluation...\n")
 
         predictions = torch.tensor([], device=self.device)
@@ -281,6 +275,19 @@ class Solver(object):
         return self.model_reslts
 
     def compute_metrics(self, epoch, batch_idx, predictions, targets, train):
+        """
+        Computes various evaluation metrics based on model predictions and true labels.
+
+        Args:
+            epoch (int): The current epoch during training or validation.
+            batch_idx (int): The index of the current batch.
+            predictions (torch.Tensor): Model predictions for the current batch.
+            targets (torch.Tensor): True labels for the current batch.
+            train (bool): Indicates whether the metrics are computed for training or validation.
+
+        Returns:
+            None: Metrics are printed to the console and logged to TensorBoard, if a writer is provided.
+        """
         # compute accuracy
         # accuracy = torch.sum(predictions == targets).item() / (targets.size(0) * targets.size(1))
 
@@ -303,11 +310,6 @@ class Solver(object):
         confusion_matrix = torch.tensor([[true_negatives, false_positives], 
                                          [false_negatives, true_positives]])
         
-        # # normalize the confusion matrix
-        # row_sums = confusion_matrix.sum(dim=1, keepdim=True)
-        # normalized_confusion_matrix = confusion_matrix / row_sums
-
-
         # print accuracy based on training or validation
         metric_type = "train" if train else "valid"
         print(f"\n{metric_type} accuracy: {accuracy:.3f} | "
@@ -315,7 +317,6 @@ class Solver(object):
               f"f1_score: {f1_score:.3f} | cohen-kappa-score: {cohen_kappa:.3f}")
         
         print(f"\nConfusion_matrix: \n{confusion_matrix}")
-        # print(f"\nNormalized Confusion_matrix: \n{normalized_confusion_matrix}")
         
         if self.writer is not None:
             self.writer.add_scalar(f"{metric_type}-accuracy", accuracy, epoch * len(self.train_loader) + batch_idx)
