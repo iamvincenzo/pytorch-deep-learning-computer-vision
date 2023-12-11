@@ -18,13 +18,13 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 - **main.py:** Script for running the training and validation of the model in k-fold cross-validation or hold-out split validation mode.
 - **custom_dataset.py:** Custom dataset class for loading and preprocessing images.
 - **early_stopping.py:** Implementation of an early stopping mechanism to prevent overfitting.
-- **hold_out_split_validation.py:** Script to launch training and hold-out split validation for model evaluation.
 - **hyperparameters_optimization.py:** Script for hyperparameter optimization (optimizer, learning rate, etc.) using Optuna.
-- **inference.py:** Inference script for making predictions on new test data.
+- **hold_out_split_validation.py:** Script to launch training and hold-out split validation for model evaluation.
 - **k_fold_cross_validation.py:** Script to launch training and k-fold cross-validation for robust model evaluation.
 - **plotting_utils.py:** Utility functions for plotting results.
 - **solver.py:** Training and validation logic.
 - **stats.py:** Computation of statistics for training and validation and plotting.
+- **inference.py:** Inference script for making predictions on new test data.
 - **keras-binary-classification/main.py:** Script for running the training and validation of the model in k-fold cross-validation with keras-tensorflow.
 
 ## Installation
