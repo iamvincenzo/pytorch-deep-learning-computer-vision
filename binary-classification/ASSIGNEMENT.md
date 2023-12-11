@@ -1,6 +1,5 @@
 # Street Cleaning Binary Classification
 
-## Problem Statement
 A street cleaning company aims to ensure the effectiveness of their cleaning efforts by verifying whether the streets are clean or contain garbage. This repository contains a solution for a binary classification problem using computer vision. The dataset consists of images representing clean streets (class 0: "clean") and streets with garbage (class 1: "dirty"). The goal is to develop a machine learning model that can accurately distinguish between clean and dirty streets.
 
 ## Dataset
@@ -10,35 +9,98 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 - **Images:** Folder containing all road images.
 - **metadata.csv:** CSV file mapping image names to class labels.
 
-## Project Overview
+<p align="center">
+    <img src="./imgs/dataset.png" alt="Dataset examples">
+</p>
 
-### 1. Load and Preprocess Data
-- Utilize the images provided in the dataset folder.
-- Load and preprocess the images for model training.
+## Project Structure
 
-### 2. Choose an Appropriate Model
-- Select a suitable machine learning model for image classification.
-- Consider using pre-trained models and data augmentation due to the limited dataset.
+- **main.py:** Script for running the training and validation of the model in k-fold cross-validation or hold-out split validation mode.
+- **custom_dataset.py:** Custom dataset class for loading and preprocessing images.
+- **early_stopping.py:** Implementation of an early stopping mechanism to prevent overfitting.
+- **hold_out_split_validation.py:** Script to launch training and hold-out split validation for model evaluation.
+- **hyperparameters_optimization.py:** Script for hyperparameter optimization (optimizer, learning rate, etc.) using Optuna.
+- **inference.py:** Inference script for making predictions on new test data.
+- **k_fold_cross_validation.py:** Script to launch training and k-fold cross-validation for robust model evaluation.
+- **plotting_utils.py:** Utility functions for plotting results.
+- **solver.py:** Training and validation logic.
+- **stats.py:** Computation of statistics for training and validation and plotting.
+- **keras-binary-classification/main.py:** Script for running the training and validation of the model in k-fold cross-validation with keras-tensorflow.
 
-### 3. Train the Model
-- Implement the chosen model and train it on the preprocessed dataset.
-- Fine-tune the model parameters to achieve optimal performance.
+## Installation
 
-### 4. Evaluate Model Performance
-- Evaluate the trained model using appropriate metrics.
-- Analyze the results and assess the model's ability to classify clean and dirty streets accurately.
+1. Clone the repository:
 
-## Potential Applications
-A successful classification model can be employed in real-world scenarios, such as developing applications to detect littered areas on roads using cameras. This technology could facilitate timely and targeted cleaning efforts, optimizing the resources of the street cleaning company.
+    ```bash
+    https://github.com/iamvincenzo/pytorch-deep-learning-computer-vision.git
+    cd binary-classification
+    ```
 
-<!-- Problema Computer Vision – classificazione binaria
+2. Create a Conda environment:
 
-Un’azienda che pulisce strade deve verificare se la pulizia è stata fatta in modo corretto. Si ha a disposizione un dataset di immagini contenenti foto di strade pulite (classe 0: “clean”) e con spazzatura (classe 1: “dirty”). Sviluppare un modello di machine learning di classificazione che distingua se un’immagine è “clean” o “dirty”.
+    ```bash
+    conda create -n street_classification
+    conda activate street_classification
+    ```
 
-Il dataset è disponibile a questo link:
-https://www.kaggle.com/datasets/faizalkarim/cleandirty-road-classification/
+2. Install dependencies:
 
-1. Caricare e pre-processare le immagini del dataset.
-2. Scegliere il modello di machine learning appropriato.
-3. Addestrare il modello.
-4. Valutare le prestazioni del modello. -->
+    ```bash
+    conda install pytorch torchvision torchaudio cpuonly -c pytorch
+    conda install -c anaconda pillow
+    conda install -c conda-forge matplotlib
+    conda install -c conda-forge pytorch-model-summary
+    conda install -c conda-forge torchmetrics
+    conda install -c conda-forge optuna
+    conda install -c anaconda scikit-learn
+    conda install -c anaconda numpy
+    conda install -c anaconda pandas
+    conda install -c anaconda tqdm
+    ```
+
+## How to Run
+
+1. Navigate to the project directory:
+
+    ```bash
+    cd binary-classification
+    ```
+
+2. Run the main program:
+
+    ```bash
+    python main.py
+    ```
+
+    ### Command-line Arguments
+
+    The following command-line arguments can be used when running the script:
+
+    - `--run_name`: The name assigned to the current run.
+    - `--model_name`: The name of the model to be saved or loaded.
+    - `--num_epochs`: The total number of training epochs.
+    - `--batch_size`: The batch size for training and validation data.
+    - `--workers`: The number of workers in the data loader.
+    - `--lr`: The learning rate for optimization.
+    - `--loss`: The loss function used for model optimization.
+    - `--opt`: The optimizer used for training.
+    - `--patience`: The threshold for early stopping during training.
+    - `--load_model`: Determines whether to load the model from a checkpoint.
+    - `--checkpoint_path`: The path to save the trained model.
+    - `--num_classes`: The number of classes to predict with the final Linear layer.
+    - `--raw_data_path`: Path where to get the raw dataset.
+    - `--apply_transformations`: Indicates whether to apply transformations to images.
+
+## Results
+
+<p align="center">
+    <img src="./imgs/clean.png" alt="Clean Street prediction">
+</p>
+
+<p align="center">
+    <img src="./imgs/dirty.png" alt="Dirty Street prediction">
+</p>
+
+## License
+
+This project is licensed under the [GNU GENERAL PUBLIC LICENSE  Version 3](../LICENSE).
