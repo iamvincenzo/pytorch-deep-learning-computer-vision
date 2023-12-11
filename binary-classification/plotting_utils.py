@@ -1,8 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def plot_confusion_matrix(tn, fp, fn, tp):
+    """
+    Plot a confusion matrix.
+
+    Args:
+        tn (int): True Negative count.
+        fp (int): False Positive count.
+        fn (int): False Negative count.
+        tp (int): True Positive count.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
+    """
     confusion_matrix = np.array([[tn, fp], [fn, tp]])
 
     fig = plt.figure()
@@ -27,8 +38,18 @@ def plot_confusion_matrix(tn, fp, fn, tp):
 
     return fig
 
-
 def plot_roc(fpr, tpr, auc):
+    """
+    Plot a Receiver Operating Characteristic (ROC) curve.
+
+    Args:
+        fpr (array-like): False Positive Rate.
+        tpr (array-like): True Positive Rate.
+        auc (float): Area Under the Curve (AUC) value.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
+    """
     fig = plt.figure(figsize=(8, 8))
 
     plt.plot(fpr, tpr, color="darkorange", lw=2, label=f"AUC = {auc:.2f}")
@@ -42,8 +63,17 @@ def plot_roc(fpr, tpr, auc):
 
     return fig
 
-
 def plot_prc(recall, precision):
+    """
+    Plot a Precision-Recall Curve.
+
+    Args:
+        recall (array-like): Recall values.
+        precision (array-like): Precision values.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
+    """
     fig = plt.figure(figsize=(8, 8))
 
     plt.plot(recall, precision, color="darkorange", lw=2)
