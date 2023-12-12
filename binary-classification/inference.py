@@ -90,7 +90,8 @@ if __name__ == "__main__":
     inference_transform = transforms.Compose([
         transforms.Resize((RESIZE, RESIZE)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                             std=[0.229, 0.224, 0.225])
     ])
 
     # load the test dataset
