@@ -10,8 +10,8 @@ from sklearn.model_selection import KFold
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.layers import Dense
 from tensorflow.python.keras.layers import Flatten
-from keras.callbacks import EarlyStopping, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import EarlyStopping, TensorBoard, ModelCheckpoint
 
 
 # reproducibility
@@ -31,14 +31,17 @@ METADATA_PATH = "./data/metadata.csv"
 
 
 def custom_preprocess_input(img):
-    # apply ResNet50 preprocessing
+    """
+    Apply ResNet50 preprocessing.
+
+    Args:
+        img (PIL.Image): the image to preprocess.
+
+    Return:
+        preprocessed img.
+    """
     img = tf.keras.applications.resnet50.preprocess_input(img)
-    
-    # Add any additional preprocessing steps if needed
-    # For example, you can uncomment and customize the following:
-    # img = tf.image.random_flip_left_right(img)
-    # img = tf.image.random_flip_up_down(img)
-    
+        
     return img
 
 
@@ -58,7 +61,6 @@ def get_generators(df, image_dir, train_indices, valid_indices):
     # set up the data generators with the custom preprocessing function
     train_datagen = ImageDataGenerator(
         preprocessing_function=custom_preprocess_input,
-        # Add other augmentation parameters as needed
         rescale=1.0 / 255,
         # rotation_range=15,
         # width_shift_range=0.1,
@@ -67,11 +69,6 @@ def get_generators(df, image_dir, train_indices, valid_indices):
         # zoom_range=0.2,
         # horizontal_flip=True,
         # fill_mode="nearest",
-    )
-
-    validation_datagen = ImageDataGenerator(
-        preprocessing_function=custom_preprocess_input,
-        rescale=1.0 / 255,
     )
 
     # generate batches with the custom preprocessing
@@ -87,6 +84,13 @@ def get_generators(df, image_dir, train_indices, valid_indices):
         target_size=(RESIZE, RESIZE),
     )
 
+    # set up the data generators with the custom preprocessing function
+    validation_datagen = ImageDataGenerator(
+        preprocessing_function=custom_preprocess_input,
+        rescale=1.0 / 255,
+    )
+
+    # generate batches with the custom preprocessing
     validation_generator = validation_datagen.flow_from_dataframe(
         dataframe=df.iloc[valid_indices],
         directory=image_dir,
@@ -116,13 +120,15 @@ def get_model():
         weights="imagenet",
     )
 
+    # freeze params for feature learning
     for layer in pretrained_model.layers:
         layer.trainable = False
 
+    # add a final classifier layer
     binary_model = Sequential()
     binary_model.add(pretrained_model)
     binary_model.add(Flatten())
-    binary_model.add(Dense(1024, activation=None)) # "relu"
+    binary_model.add(Dense(512, activation=None)) # "relu"
     binary_model.add(Dense(1, activation="sigmoid"))
 
     binary_model.compile(
@@ -154,17 +160,24 @@ if __name__ == "__main__":
         # create the binary classification model
         binary_model = get_model()
 
-        # add early stopping callback
+        # print(binary_model.summary())
+
+        # early stopping callback
         early_stopping = EarlyStopping(monitor="val_loss", 
                                        patience=PATIENCE, restore_best_weights=True)
 
-        # add TensorBoard callback
+        # tensorBoard callback
         log_dir = "keras_logs/fit/" + datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
+        # # model checkpoint callback to save the best weights
+        # checkpoint_path = f"model_checkpoint_fold_{fold + 1}.h5"
+        # model_checkpoint = ModelCheckpoint(checkpoint_path, 
+        #                                    monitor="val_loss", save_best_only=True, mode="min")
+        
         # train the model
         history = binary_model.fit(train_gen, validation_data=valid_gen, 
-                                   epochs=NUM_EPOCHS, callbacks=[early_stopping, tensorboard_callback])
+                                   epochs=NUM_EPOCHS, callbacks=[early_stopping, tensorboard_callback]) #, model_checkpoint])
 
         # evaluate the model on the validation set
         test_loss, test_accuracy = binary_model.evaluate(valid_gen)
