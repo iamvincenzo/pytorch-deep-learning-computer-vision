@@ -358,6 +358,10 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 </table>
 
 <p align="center">
+    <img src="./imgs/comparison.png" alt="Clean Street prediction">
+</p>
+
+<p align="center">
     <img src="./imgs/clean.png" alt="Clean Street prediction">
 </p>
 
