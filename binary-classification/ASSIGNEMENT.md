@@ -92,23 +92,11 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ## Results
 
+### ResNet18 (Test 1)
+
 <table>
 <tr><th></th><th></th></tr>
 <tr><td>
-
-|Table 1| Middle | Table 2|
-|--|--|--|
-|a| not b|and c |
-
-</td><td>
-
-|b|1|2|3| 
-|--|--|--|--|
-|a|s|d|f|
-
-</td></tr> </table>
-
-### ResNet18 (Test 1)
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
@@ -117,10 +105,14 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Optimizer                 | RMSprop        |
 | Transformations           | Flip, Rotations, Normalization |
 
+</td><td>
+
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 92.846%        |
 | Loss                      | 0.169          |
+
+</td></tr> </table>
 
 ### ResNet18 (Test 2)
 
