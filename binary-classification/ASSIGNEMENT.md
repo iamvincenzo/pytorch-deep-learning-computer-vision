@@ -94,19 +94,19 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ### ResNet18 (Test 1)
 
-<div style="display: flex; justify-content: space-between;">
+<div style="display:flex;">
 
-| Parameter       | Value          |
-|-----------------|----------------|
-| Batch Size      | 16             |
-| Learning Rate   | 0.004014796    |
-| Optimizer       | RMSprop        |
-| Transformations | Flip, Rotations, Normalization |
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Transformations           | Flip, Rotations, Normalization |
 
-| Metric    | Average   |
-|-----------|-----------|
-| Accuracy  | 92.846%   |
-| Loss      | 0.169     |
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 92.846%        |
+| Loss                      | 0.169          |
 
 </div>
 
