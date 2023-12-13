@@ -92,7 +92,21 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ## Results
 
-<div style="display:flex;justify-content:space-between;">
+<table>
+<tr><th>Table 1 Heading 1 </th><th>Table 1 Heading 2</th></tr>
+<tr><td>
+
+|Table 1| Middle | Table 2|
+|--|--|--|
+|a| not b|and c |
+
+</td><td>
+
+|b|1|2|3| 
+|--|--|--|--|
+|a|s|d|f|
+
+</td></tr> </table>
 
 ### ResNet18 (Test 1)
 
@@ -107,8 +121,6 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 |---------------------------|----------------|
 | Accuracy                  | 92.846%        |
 | Loss                      | 0.169          |
-
-</div>
 
 ### ResNet18 (Test 2)
 
