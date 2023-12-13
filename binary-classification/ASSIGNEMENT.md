@@ -92,9 +92,9 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ## Results
 
-### ResNet18 (Test 1)
+<div style="display:flex;justify-content:space-between;">
 
-<div style="display:flex;">
+### ResNet18 (Test 1)
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
