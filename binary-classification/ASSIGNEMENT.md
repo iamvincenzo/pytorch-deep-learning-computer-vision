@@ -7,10 +7,6 @@ A street cleaning company aims to ensure the effectiveness of their cleaning eff
 ## Dataset
 The dataset is available on Kaggle at [CleanDirty Road Classification](https://www.kaggle.com/datasets/faizalkarim/cleandirty-road-classification/). It includes a total of 237 images sourced from the internet. The images are divided into two classes: "clean" and "dirty." The dataset also provides a CSV file, `metadata.csv`, mapping each image's filename to its corresponding class label.
 
-### Dataset Structure
-- **Images:** Folder containing all road images.
-- **metadata.csv:** CSV file mapping image names to class labels.
-
 <p align="center">
     <img src="./imgs/dataset.png" alt="Dataset examples">
 </p>
