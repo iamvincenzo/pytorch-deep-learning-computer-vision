@@ -168,7 +168,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.004014796    |
 | Optimizer                 | RMSprop        |
-| Apply Transformations     | TrivialAugmentWide           |
+| Transformations     | TrivialAugmentWide           |
 
 </td>
 
@@ -226,7 +226,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
-| Apply Transformations    | TrivialAugmentWide           |
+| Transformations    | TrivialAugmentWide           |
 
 </td>
 
@@ -255,7 +255,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
-| Apply Transformations    | False          |
+| Transformations    | False          |
 
 </td>
 
@@ -284,7 +284,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
-| Apply Transformations    | TrivialAugmentWide           |
+| Transformations    | TrivialAugmentWide           |
 
 </td>
 
@@ -313,7 +313,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
-| Apply Transformations    | TrivialAugmentWide           |
+| Transformations    | TrivialAugmentWide           |
 
 </td>
 
@@ -342,7 +342,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
-| Apply Transformations    | TrivialAugmentWide           |
+| Transformations    | TrivialAugmentWide           |
 
 </td>
 
