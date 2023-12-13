@@ -97,7 +97,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 <table>
 <tr>
 <th> Train configuration </th>
-<th> Results </th>
+<th> Test results </th>
 </tr>
 <tr>
 <td>
