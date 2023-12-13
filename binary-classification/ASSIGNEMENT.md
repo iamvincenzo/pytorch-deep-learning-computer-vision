@@ -150,10 +150,6 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 </tr> 
 </table>
 
-</td>
-</tr> 
-</table>
-
 <table>
 <tr>
 <th> Train configuration </th>
