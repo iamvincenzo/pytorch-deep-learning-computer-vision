@@ -92,8 +92,6 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ## Results
 
-### ResNet18 (Test 1)
-
 <table>
 <tr>
 <th> Train configuration </th>
@@ -104,6 +102,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.004014796    |
 | Optimizer                 | RMSprop        |
