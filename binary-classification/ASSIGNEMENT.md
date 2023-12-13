@@ -121,117 +121,241 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 </tr> 
 </table>
 
-### ResNet18 (Test 2)
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.004014796    |
 | Optimizer                 | RMSprop        |
 | Transformations           | False          |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 95.780%        |
 | Loss                      | 0.107          |
 
-### ResNet18 (Test 3)
+</td>
+</tr> 
+</table>
+
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.004014796    |
 | Optimizer                 | RMSprop        |
 | Apply Transformations     | TrivialAugmentWide           |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 95.798%        |
 | Loss                      | 0.103          |
 
-### ResNet18 (Test 4)
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Transformations           | Flip, Rotations, Normalization |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 95.771%        |
 | Loss                      | 0.120          |
 
-### ResNet18 (Test 5)
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Apply Transformations    | TrivialAugmentWide           |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 96.622%        |
 | Loss                      | 0.095          |
 
-### ResNet18 (Test 6)
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | ResNet18             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Apply Transformations    | False          |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 96.197%        |
 | Loss                      | 0.091          |
 
-### MobileNetV2
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | MobileNetV2             |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Apply Transformations    | TrivialAugmentWide           |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 96.622%        |
 | Loss                      | 0.098          |
 
-### EfficientNet-V2-L
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | EfficientNet-V2-L            |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Apply Transformations    | TrivialAugmentWide           |
+
+</td>
+
+<td>
 
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 96.613%        |
 | Loss                      | 0.171          |
 
-### VGG-16
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
 
 | Parameter                 | Value          |
 |---------------------------|----------------|
+| Model                | VGG-16          |
 | Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Apply Transformations    | TrivialAugmentWide           |
 
+</td>
+
+<td>
+
 | Metric                    | Average        |
 |---------------------------|----------------|
 | Accuracy                  | 96.613%        |
 | Loss                      | 0.103          |
+
+</td>
+</tr> 
+</table>
 
 <p align="center">
     <img src="./imgs/clean.png" alt="Clean Street prediction">
