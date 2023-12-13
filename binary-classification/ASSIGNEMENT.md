@@ -1,5 +1,7 @@
 # Street Cleaning Binary Classification
 
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-orange?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/) [![Windows](https://img.shields.io/badge/Windows-11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows/) [![VS Code](https://img.shields.io/badge/VS%20Code-v1.61.0-007ACC?style=flat-square&logo=visual-studio-code&logoColor=white)](https://code.visualstudio.com/) [![Python](https://img.shields.io/badge/Python-3.10-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/) [![PyTorch](https://img.shields.io/badge/PyTorch-v1.10.0-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/) [![Keras](https://img.shields.io/badge/Keras-2.8.0-D00000?style=flat-square&logo=keras&logoColor=white)](https://keras.io/) [![TensorFlow](https://img.shields.io/badge/TensorFlow-v2.8.0-FF6F00?style=flat-square&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/) [![Optuna](https://img.shields.io/badge/Optuna-v2.10.0-EE4D5A?style=flat-square&logo=optuna&logoColor=white)](https://optuna.org/) [![Matplotlib](https://img.shields.io/badge/Matplotlib-v3.4.3-FF5733?style=flat-square&logo=python&logoColor=white)](https://matplotlib.org/) [![NumPy](https://img.shields.io/badge/NumPy-v1.21.0-4C65AF?style=flat-square&logo=numpy&logoColor=white)](https://numpy.org/) [![Pandas](https://img.shields.io/badge/Pandas-v1.3.3-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+
 A street cleaning company aims to ensure the effectiveness of their cleaning efforts by verifying whether the streets are clean or contain garbage. This repository contains a solution for a binary classification problem using computer vision. The dataset consists of images representing clean streets (class 0: "clean") and streets with garbage (class 1: "dirty"). The goal is to develop a machine learning model that can accurately distinguish between clean and dirty streets.
 
 ## Dataset
@@ -21,10 +23,11 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 - **hyperparameters_optimization.py:** Script for hyperparameter optimization (optimizer, learning rate, etc.) using Optuna.
 - **hold_out_split_validation.py:** Script to launch training and hold-out split validation for model evaluation.
 - **k_fold_cross_validation.py:** Script to launch training and k-fold cross-validation for robust model evaluation.
-- **plotting_utils.py:** Utility functions for plotting results.
 - **solver.py:** Training and validation logic.
+- **plotting_utils.py:** Utility functions for plotting results.
 - **stats.py:** Computation of statistics for training and validation and plotting.
 - **inference.py:** Inference script for making predictions on new test data.
+
 - **keras-binary-classification/main.py:** Script for running the training and validation of the model in k-fold cross-validation with keras-tensorflow.
 
 ## Installation
@@ -92,6 +95,132 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
     - `--apply_transformations`: Indicates whether to apply transformations to images.
 
 ## Results
+
+### ResNet18 (Test 1)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Transformations           | Flip, Rotations, Normalization |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 92.846%        |
+| Loss                      | 0.169          |
+
+### ResNet18 (Test 2)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Transformations           | False          |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 95.780%        |
+| Loss                      | 0.107          |
+
+### ResNet18 (Test 3)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Apply Transformations     | TrivialAugmentWide           |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 95.798%        |
+| Loss                      | 0.103          |
+
+### ResNet18 (Test 4)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Transformations           | Flip, Rotations, Normalization |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 95.771%        |
+| Loss                      | 0.120          |
+
+### ResNet18 (Test 5)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Apply Transformations    | TrivialAugmentWide           |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 96.622%        |
+| Loss                      | 0.095          |
+
+### ResNet18 (Test 6)
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Apply Transformations    | False          |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 96.197%        |
+| Loss                      | 0.091          |
+
+### MobileNetV2
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Apply Transformations    | TrivialAugmentWide           |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 96.622%        |
+| Loss                      | 0.098          |
+
+### EfficientNet-V2-L
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Apply Transformations    | TrivialAugmentWide           |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 96.613%        |
+| Loss                      | 0.171          |
+
+### VGG-16
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Batch Size                | 16             |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Apply Transformations    | TrivialAugmentWide           |
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 96.613%        |
+| Loss                      | 0.103          |
 
 <p align="center">
     <img src="./imgs/clean.png" alt="Clean Street prediction">
