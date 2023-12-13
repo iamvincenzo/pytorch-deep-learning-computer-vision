@@ -89,24 +89,24 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
     - `--num_classes`: The number of classes to predict with the final Linear layer.
     - `--raw_data_path`: Path where to get the raw dataset.
     - `--apply_transformations`: Indicates whether to apply transformations to images.
-    
-## Results
 
-<div style="display: flex; justify-content: space-between;">
+## Results
 
 ### ResNet18 (Test 1)
 
-| Parameter       | Value          |
-|-----------------|----------------|
-| Batch Size      | 16             |
-| Learning Rate   | 0.004014796    |
-| Optimizer       | RMSprop        |
-| Transformations | Flip, Rotations, Normalization |
+<div style="display: flex; justify-content: space-between;">
 
-| Metric    | Average   |
-|-----------|-----------|
-| Accuracy  | 92.846%   |
-| Loss      | 0.169     |
+    | Parameter       | Value          |
+    |-----------------|----------------|
+    | Batch Size      | 16             |
+    | Learning Rate   | 0.004014796    |
+    | Optimizer       | RMSprop        |
+    | Transformations | Flip, Rotations, Normalization |
+
+    | Metric    | Average   |
+    |-----------|-----------|
+    | Accuracy  | 92.846%   |
+    | Loss      | 0.169     |
 
 </div>
 
