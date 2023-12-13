@@ -106,35 +106,6 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 | Batch Size                | 16             |
 | Learning Rate             | 0.004014796    |
 | Optimizer                 | RMSprop        |
-| Transformations           | Flip, Rotations, Normalization |
-
-</td>
-
-<td>
-
-| Metric                    | Average        |
-|---------------------------|----------------|
-| Accuracy                  | 92.846%        |
-| Loss                      | 0.169          |
-
-</td>
-</tr> 
-</table>
-
-<table>
-<tr>
-<th> Train configuration </th>
-<th> Test results </th>
-</tr>
-<tr>
-<td>
-
-| Parameter                 | Value          |
-|---------------------------|----------------|
-| Model                | ResNet18             |
-| Batch Size                | 16             |
-| Learning Rate             | 0.004014796    |
-| Optimizer                 | RMSprop        |
 | Transformations           | False          |
 
 </td>
@@ -162,9 +133,9 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 |---------------------------|----------------|
 | Model                | ResNet18             |
 | Batch Size                | 16             |
-| Learning Rate             | 0.004014796    |
-| Optimizer                 | RMSprop        |
-| Transformations     | TrivialAugmentWide           |
+| Learning Rate             | 0.001          |
+| Optimizer                 | Adam           |
+| Transformations    | False          |
 
 </td>
 
@@ -172,8 +143,37 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 | Metric                    | Average        |
 |---------------------------|----------------|
-| Accuracy                  | 95.798%        |
-| Loss                      | 0.103          |
+| Accuracy                  | 96.197%        |
+| Loss                      | 0.091          |
+
+</td>
+</tr> 
+</table>
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Model                | ResNet18             |
+| Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Transformations           | Flip, Rotations, Normalization |
+
+</td>
+
+<td>
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 92.846%        |
+| Loss                      | 0.169          |
 
 </td>
 </tr> 
@@ -220,6 +220,36 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 |---------------------------|----------------|
 | Model                | ResNet18             |
 | Batch Size                | 16             |
+| Learning Rate             | 0.004014796    |
+| Optimizer                 | RMSprop        |
+| Transformations     | TrivialAugmentWide           |
+
+</td>
+
+<td>
+
+| Metric                    | Average        |
+|---------------------------|----------------|
+| Accuracy                  | 95.798%        |
+| Loss                      | 0.103          |
+
+</td>
+</tr> 
+</table>
+
+
+<table>
+<tr>
+<th> Train configuration </th>
+<th> Test results </th>
+</tr>
+<tr>
+<td>
+
+| Parameter                 | Value          |
+|---------------------------|----------------|
+| Model                | ResNet18             |
+| Batch Size                | 16             |
 | Learning Rate             | 0.001          |
 | Optimizer                 | Adam           |
 | Transformations    | TrivialAugmentWide           |
@@ -237,34 +267,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 </tr> 
 </table>
 
-<table>
-<tr>
-<th> Train configuration </th>
-<th> Test results </th>
-</tr>
-<tr>
-<td>
 
-| Parameter                 | Value          |
-|---------------------------|----------------|
-| Model                | ResNet18             |
-| Batch Size                | 16             |
-| Learning Rate             | 0.001          |
-| Optimizer                 | Adam           |
-| Transformations    | False          |
-
-</td>
-
-<td>
-
-| Metric                    | Average        |
-|---------------------------|----------------|
-| Accuracy                  | 96.197%        |
-| Loss                      | 0.091          |
-
-</td>
-</tr> 
-</table>
 
 <table>
 <tr>
