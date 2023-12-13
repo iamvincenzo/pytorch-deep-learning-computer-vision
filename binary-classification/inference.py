@@ -9,6 +9,8 @@ from torchvision import models, transforms
 from torchvision.datasets import ImageFolder
 from torchvision.models import ResNet18_Weights
 
+from plotting_utils import activations_viewer
+
 
 # reproducibility
 SEED = 42
@@ -39,7 +41,7 @@ def get_prediction(model, x_test):
     """
     model.eval()
     with torch.inference_mode():
-        x_test = x_test.unsqueeze(0).to(device)
+        x_test = x_test.to(device)
         logits = model(x_test)
         prob = torch.sigmoid(logits)
         y_pred = torch.round(prob)
@@ -99,6 +101,9 @@ if __name__ == "__main__":
 
     # perform inference on each image in the test set
     for _, (img, label) in enumerate(test_set):
-        tensor = inference_transform(img)
+        tensor = inference_transform(img).unsqueeze(0)
         y_pred, prob = get_prediction(model=model, x_test=tensor)
         plot_prediction(img=img, pred_label=y_pred, prob=prob, true_label=label)
+
+        if label:
+            activations_viewer(model, tensor)
