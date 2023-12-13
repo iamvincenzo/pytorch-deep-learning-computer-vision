@@ -73,7 +73,7 @@ def plot_mean_accuracy_std(files, save_path=None):
     # print("Max Accuracy:")
     # print(max_accuracy)
 
-    # Plotting
+    # plotting
     plt.errorbar(range(1, len(mean_accuracy) + 1), mean_accuracy, yerr=std_accuracy, fmt="o-", label="Mean ±Std-Dev Accuracy")
     plt.scatter(range(1, len(min_accuracy) + 1), min_accuracy, color='red', marker='v', label="Min Accuracy")
     plt.scatter(range(1, len(max_accuracy) + 1), max_accuracy, color='green', marker='^', label="Max Accuracy")

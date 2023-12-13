@@ -128,7 +128,7 @@ def get_model():
     binary_model = Sequential()
     binary_model.add(pretrained_model)
     binary_model.add(Flatten())
-    binary_model.add(Dense(512, activation=None)) # "relu"
+    binary_model.add(Dense(512, activation="relu"))
     binary_model.add(Dense(1, activation="sigmoid"))
 
     binary_model.compile(
