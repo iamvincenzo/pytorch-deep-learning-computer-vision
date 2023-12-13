@@ -104,7 +104,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 |---------------------------|----------------|
 | Model                | ResNet18             |
 | Batch Size                | 16             |
-| Learning Rate             | 0.0040148    |
+| Learning Rate             | 0.004015   |
 | Optimizer                 | RMSprop        |
 | Transformations           | False          |
 
