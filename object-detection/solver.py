@@ -43,7 +43,8 @@ class Solver(object):
         # initialize the early_stopping object
         early_stopping = EarlyStopping(patience=self.patience, verbose=True)
         
-        self.model.train()
+        # see valid_net to understand why .train() is disabled
+        # self.model.train()
 
         for epoch in range(self.epochs): 
             print(f"\nTraining iteration | Epoch[{epoch + 1}/{self.epochs}]")
@@ -96,8 +97,8 @@ class Solver(object):
                 print("Early stopping...")
                 break
 
-            # to remove
-            self.save_model()
+            # # to remove
+            # self.save_model()
 
         print("\nTraining model Done...")
 
@@ -105,7 +106,30 @@ class Solver(object):
         """
         Validate the neural network using the provided validation data loader.
         """
-        self.model.eval()
+        # self.model.eval()
+        '''
+            It is not necessary to put the model in .eval()/.train() mode because otherwise Faster R-CNN
+            in .eval() mode is not able to calculate the loss during validation. What could be done
+            is to put only BatchNorm1d/2d/3d and Dropout layers in .eval() mode since they behave differently 
+            in eval mode, while leaving the entire model in training mode for the calculation of the loss 
+            during validation. However, it is not necessary as the PyTorch implementations of Faster R-CNN do 
+            not use Dropout, and FrozenBatchNorm2d is used, which has frozen statistics and behaves the 
+            same way in both training and validation.            
+            Credits:
+                - https://discuss.pytorch.org/t/how-to-calculate-validation-loss-for-faster-rcnn/96307/11
+                - https://discuss.pytorch.org/t/how-to-calculate-validation-loss-for-faster-rcnn/96307/12
+                - https://discuss.pytorch.org/t/how-to-calculate-validation-loss-for-faster-rcnn/96307/16
+
+            with torch.no_grad():
+                Disabling gradient calculation when you are sure that you will not call Tensor.backward().
+                In this mode, the result of every computation will have requires_grad=False, even when the
+                inputs have requires_grad=True.
+            model.eval():
+                will notify all your layers that you are in eval mode, that way, batchnorm or dropout
+                layers will work in eval mode instead of training mode.            
+            Credits:
+                - https://discuss.pytorch.org/t/model-eval-vs-with-torch-no-grad/19615
+        '''
 
         with torch.no_grad():
             # use tqdm for a progress bar during validation
@@ -120,6 +144,7 @@ class Solver(object):
 
                 # forward pass and compute loss
                 loss_dict = self.model(x_valid, y_valid)
+
                 losses = sum(loss for loss in loss_dict.values())
                 
                 valid_losses.append(losses.item())
@@ -129,7 +154,7 @@ class Solver(object):
 
             loop.close()
 
-        self.model.train()
+        # self.model.train()
 
     def save_model(self, epoch):
         """
