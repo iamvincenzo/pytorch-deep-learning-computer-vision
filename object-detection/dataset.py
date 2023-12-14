@@ -7,12 +7,13 @@ Research Paper: https://arxiv.org/pdf/1911.10317.pdf
 This dataset is designed for visual plant disease detection, containing images
 of plants with associated bounding box annotations for various plant diseases.
 """
-
+import cv2
 import torch
 import numpy as np
-from PIL import Image
 from torch.utils.data import Dataset
-from torchvision.transforms import transforms
+import matplotlib.pyplot as plt
+
+from data_augmentation import CustomAlbumentations
 
 
 # parameters
@@ -35,13 +36,13 @@ def collate_fn(batch):
 
 
 class PlantDocDataset(Dataset):
-    def __init__(self, df, transform, resize, root, classes, classes_inverse):
+    def __init__(self, df, data_aug, resize_h, resize_w, root, classes, classes_inverse):
         """
         Initializes the PlantDocDataset.
 
         Parameters:
             - df (pandas.DataFrame): The DataFrame containing metadata about images and annotations.
-            - transform (torchvision.transforms.Compose): A composition of image transformations.
+            # - data_aug (Bool): A composition of image transformations.
             - resize (int): The target size for resizing the images.
             - root (Path): The root path to the dataset images.
             - classes (dict): A dictionary mapping class names to numerical labels.
@@ -49,20 +50,20 @@ class PlantDocDataset(Dataset):
         """
         super(PlantDocDataset, self).__init__()
         self.df = df
-        self.root = root  # root path to the dataset images
-        self.resize = resize  # target size for resizing the images
-        self.classes = classes  # dictionary mapping class names to numerical labels
-        self.classes_inverse = classes_inverse  # dictionary mapping numerical labels to class names
+        self.root = root # root path to the dataset images
+        self.resize_h = resize_h # target size for resizing the images
+        self.resize_w = resize_w # target size for resizing the images
+        self.classes = classes # dictionary mapping class names to numerical labels
+        self.classes_inverse = classes_inverse # dictionary mapping numerical labels to class names
         self.all_images = self.df["filename"].unique().tolist()
 
-        # check if a custom transformation is provided, otherwise use default
-        if transform is not None:
-            self.transform = transform
+        if data_aug:
+            transform = "advance"
         else:
-            self.transform = transforms.Compose([
-                transforms.Resize((resize, resize)),
-                transforms.ToTensor()
-            ])
+            transform = "basic"
+        self.transform = CustomAlbumentations(resize_h=self.resize_h,
+                                              resize_w=self.resize_w,
+                                              transform=transform)
 
     def __getitem__(self, index):
         """
@@ -75,32 +76,49 @@ class PlantDocDataset(Dataset):
             - tuple: A tuple containing the processed image tensor and annotation target dictionary.
         """
         filename = self.all_images[index]  # get the filename of the current image
-        img = Image.open(fp=self.root / filename).convert("RGB")  # open the image using PIL
-        width, height = img.size  # get the original width and height of the image
-
-        img_t = self.transform(img)  # apply the specified image transformations
+        img = cv2.imread(str(self.root/filename))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        height, width, _ = img.shape  # get the original width and height of the image
 
         # extract bounding box coordinates and class labels from the DataFrame
-        boxes = np.array(self.df[self.df["filename"] == filename].iloc[:, SKIPCOLS:])
-        classes = np.array([self.classes[name] for name in
-                            self.df[self.df["filename"] == filename].iloc[:, CLASS_COL]])
-        boxes_t = torch.from_numpy(boxes).to(dtype=torch.float32)  # convert bounding boxes to PyTorch tensor
-        classes_t = torch.from_numpy(classes).to(dtype=torch.int64)  # convert class labels to PyTorch tensor
+        bboxes = torch.from_numpy(np.array(self.df[self.df["filename"] == filename].iloc[:, SKIPCOLS:])).to(dtype=torch.float32)
+        classes = torch.from_numpy(np.array([self.classes[name] for name in
+                                             self.df[self.df["filename"] == filename].iloc[:, CLASS_COL]])).to(dtype=torch.int64)
+        class_labels = [name for name in self.df[self.df["filename"] == filename].iloc[:, CLASS_COL]]
 
-        w_ratio = self.resize / width  # calculate width ratio for normalization
-        h_ratio = self.resize / height  # calculate height ratio for normalization
+        # normalize bounding box coordinates
+        bboxes[:, 0] /= width # xmin
+        bboxes[:, 1] /= height # ymin
+        bboxes[:, 2] /= width # xmax
+        bboxes[:, 3] /= height # ymax
 
-        # normalize bounding box coordinates based on image size
-        boxes_t[:, 0] = boxes_t[:, 0] * w_ratio
-        boxes_t[:, 2] = boxes_t[:, 2] * w_ratio
-        boxes_t[:, 1] = boxes_t[:, 1] * h_ratio
-        boxes_t[:, 3] = boxes_t[:, 3] * h_ratio
+        # apply augmentations
+        # Albumentation ToTensorV2 do not perform normalization automatically 
+        img = img.astype(dtype=np.float32) / 255.0
+        img, bboxes, class_labels = self.transform(image=img,
+                                                   bboxes=bboxes,
+                                                   class_labels=class_labels)
 
         target = {}
-        target["boxes"] = boxes_t
-        target["labels"] = classes_t
+        target["boxes"] = bboxes
+        target["labels"] = classes
 
-        return img_t, target
+        # # DEBUG
+        # # convert transformed bounding boxes back to pixel coordinates for visualization
+        # np_img = img.numpy().transpose(1, 2, 0)
+        # height, width = self.resize_h, self.resize_w
+        # bboxes[:, 0] *= width # xmin
+        # bboxes[:, 1] *= height # ymin
+        # bboxes[:, 2] *= width # xmax
+        # bboxes[:, 3] *= height # ymax
+        # for bbox in bboxes:
+        #     xmin, ymin, xmax, ymax = map(int, bbox)
+        #     cv2.rectangle(np_img, (xmin, ymin), (xmax, ymax), color=(255, 0, 0), thickness=1)
+        # plt.title("Augmented image")
+        # plt.imshow(np_img)
+        # plt.show()
+
+        return img, target
 
     def __len__(self):
         """
