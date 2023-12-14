@@ -43,7 +43,7 @@ class Solver(object):
         # initialize the early_stopping object
         early_stopping = EarlyStopping(patience=self.patience, verbose=True)
         
-        # see valid_net to understand why .train() is disabled
+        # see self.valid_net() to understand why .train() mode is disabled
         # self.model.train()
 
         for epoch in range(self.epochs): 
@@ -106,6 +106,8 @@ class Solver(object):
         """
         Validate the neural network using the provided validation data loader.
         """
+        print(f"\nStarting validation...\n")
+        
         # self.model.eval()
         '''
             It is not necessary to put the model in .eval()/.train() mode because otherwise Faster R-CNN
