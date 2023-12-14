@@ -17,10 +17,10 @@ def create_model(num_classes):
           box predictor head for the specified number of classes.
     """    
     # load Faster RCNN pre-trained model with MobileNetV3 backbone
-    model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(trainable_backbone_layers=3,
-                                                                           weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
-    # # alternatively, you can use the ResNet50 backbone:
-    # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
+    # model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(trainable_backbone_layers=3,
+    #                                                                        weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
+    # # # alternatively, you can use the ResNet50 backbone:
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
     
     # get the number of input features 
     in_features = model.roi_heads.box_predictor.cls_score.in_features
