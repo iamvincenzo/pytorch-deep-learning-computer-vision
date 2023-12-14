@@ -1,12 +1,21 @@
 import os
+import torch
+import random
 import numpy as np
 import pandas as pd
 from PIL import Image
 from pathlib import Path
 from PIL import ImageDraw
 import matplotlib.pyplot as plt
-from torchvision.transforms import transforms
+import torchvision.transforms.functional as TF
 
+from data_augmentation import resize_bbox
+from data_augmentation import custom_transform
+
+
+# # reproducibility
+# SEED = 42
+# random.seed(SEED)
 
 # parameters
 RESIZE = 128
@@ -22,43 +31,24 @@ if __name__ == "__main__":
     train_df = pd.read_csv(filepath_or_buffer=METADATA_TRAIN_PATH)
     filtered_train_df = train_df[[os.path.isfile(TRAIN_IMGS_PATH / filename) for filename in train_df["filename"]]]
 
-    # read and filter testing metadata (remove images that don't exist)
-    test_df = pd.read_csv(filepath_or_buffer=METADATA_TEST_PATH)
-    filtered_test_df = test_df[[os.path.isfile(TEST_IMGS_PATH / filename) for filename in test_df["filename"]]]
-
-    # print(min(filter(lambda x: x > 0, filtered_train_df["width"])))
-    # print(min(filter(lambda x: x > 0, filtered_train_df["height"])))
-    # print(max(filtered_train_df["width"]))
-    # print(max(filtered_train_df["height"]))
-
-    filename, w, h, _, xmin, ymin, xmax, ymax = train_df.iloc[0]
-
-    w_ratio = RESIZE / w
-    h_ratio = RESIZE / h
+    filename, w, h, *_ = train_df.iloc[0]
+    bboxes = torch.from_numpy(np.array(filtered_train_df[filtered_train_df["filename"] == filename].iloc[:, 4:]))
 
     img = Image.open(fp=TRAIN_IMGS_PATH/filename)
+    
+    w_ratio = RESIZE / w
+    h_ratio = RESIZE / h
+    # resize flipped bounding boxes
+    bboxes = resize_bbox(bboxes=bboxes, w_ratio=w_ratio, h_ratio=h_ratio)
+    img = TF.resize(img=img, size=(RESIZE, RESIZE))
 
-    draw = ImageDraw.Draw(img)
+    for _ in range(100):
+        img_aug, bboxes_aug = custom_transform(img=img, bboxes=bboxes)
+        draw = ImageDraw.Draw(img_aug)
 
-    rects = np.array(filtered_train_df[filtered_train_df["filename"] == filename].iloc[:, 4:])
+        for xmin, ymin, xmax, ymax in bboxes_aug:
+            draw.rectangle([(xmin, ymin), (xmax, ymax)], outline="red", width=1)
 
-    for xmin, ymin, xmax, ymax in rects:
-        draw.rectangle([(xmin, ymin), (xmax, ymax)], outline="red", width=1)
-
-    plt.title("Original size")
-    plt.imshow(img)
-    plt.show()
-
-    transform = transforms.Compose([transforms.Resize((RESIZE, RESIZE))])
-    img = transform(img)
-
-    for xmin, ymin, xmax, ymax in rects:
-        xmin = int(xmin * w_ratio)
-        ymin = int(ymin * h_ratio)
-        xmax = int(xmax * w_ratio)
-        ymax = int(ymax * h_ratio)
-        draw.rectangle([(xmin, ymin), (xmax, ymax)], outline="red", width=1)
-
-    plt.title("Resized")
-    plt.imshow(img)
-    plt.show()
+        plt.title("Augmented image")
+        plt.imshow(img_aug)
+        plt.show()
