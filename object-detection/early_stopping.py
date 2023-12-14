@@ -18,7 +18,7 @@ class EarlyStopping(object):
         verbose (bool): If True, prints a message for each validation loss improvement.
                         Default: False
     """
-    def __init__(self, patience=5, delta=0, path="./checkpoints/", verbose=False):
+    def __init__(self, patience=5, delta=0, path="./checkpoints", verbose=False):
         # initialize the parameters
         self.patience = patience
         self.delta = delta
@@ -37,6 +37,9 @@ class EarlyStopping(object):
 
         # minimum validation loss initialized to positive infinity
         self.val_loss_min = float('inf')
+
+        # create directory if not exists
+        os.makedirs(self.path, exist_ok=True)
 
     def __call__(self, epoch, val_loss, model):
         """
