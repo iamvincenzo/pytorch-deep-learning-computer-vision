@@ -57,12 +57,9 @@ class PlantDocDataset(Dataset):
         self.classes_inverse = classes_inverse # dictionary mapping numerical labels to class names
         self.all_images = self.df["filename"].unique().tolist()
 
-        if data_aug:
-            transform = "advance"
-        else:
-            transform = "basic"
-        self.transform = CustomAlbumentations(resize_h=self.resize_h,
-                                              resize_w=self.resize_w,
+        transform = "advance" if data_aug else "basic"
+        self.transform = CustomAlbumentations(resize_h=self.resize_h, 
+                                              resize_w=self.resize_w, 
                                               transform=transform)
 
     def __getitem__(self, index):
