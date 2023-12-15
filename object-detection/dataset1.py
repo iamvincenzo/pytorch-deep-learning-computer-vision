@@ -117,7 +117,7 @@ class PlantDocDataset(Dataset):
         
         # bounding box to tensor
         bboxes = torch.as_tensor(bboxes, dtype=torch.float32)
-        # area of the bounding boxes (xmax -xmin)*(ymax-ymin) = width*height
+        # area of the bounding boxes (ymax-ymin)*(xmax -xmin) = height*width
         area = (bboxes[:, 3] - bboxes[:, 1]) * (bboxes[:, 2] - bboxes[:, 0])
         # no crowd instances
         iscrowd = torch.zeros((bboxes.shape[0],), dtype=torch.int64)
