@@ -21,14 +21,14 @@ class CustomAlbumentations(object):
                 If None, a default set of augmentations is used.
         """
         super(CustomAlbumentations, self).__init__()
-        self.resize_w = resize_w
         self.resize_h = resize_h
+        self.resize_w = resize_w
 
         # set the transformation pipeline
         if transform == "basic":
             self.transform = A.Compose([
                 A.Resize(width=self.resize_h, height=self.resize_w),
-                A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+                # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format="albumentations",
                                         # min_area=1024, 
@@ -42,11 +42,11 @@ class CustomAlbumentations(object):
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
                 A.RandomRotate90(p=0.5),
-                A.Rotate(limit=(-30, 30), border_mode=cv2.BORDER_CONSTANT, value=.0, p=0.5),
+                # A.Rotate(limit=(-30, 30), border_mode=cv2.BORDER_CONSTANT, value=.0, p=0.5),
                 A.RandomBrightnessContrast(p=0.2),
                 # A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=30, p=0.5),
                 A.Blur(blur_limit=(3, 7), p=0.5),
-                A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+                # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format="albumentations",
                                         # min_area=1024, 
@@ -71,7 +71,7 @@ class CustomAlbumentations(object):
                                      bboxes=bboxes, 
                                      class_labels=class_labels)
         transformed_image = transformed["image"]
-        transformed_bboxes = torch.tensor(transformed["bboxes"])
-        transformed_class_labels = transformed["class_labels"]
+        transformed_bboxes = torch.as_tensor(transformed["bboxes"], dtype=torch.float32)
+        transformed_class_labels = torch.as_tensor(transformed["class_labels"], dtype=torch.int64)
 
         return transformed_image, transformed_bboxes, transformed_class_labels
