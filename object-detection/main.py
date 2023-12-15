@@ -60,6 +60,9 @@ def clean_dataframe(df, imgs_root_path, save_path):
     condition = df["height"] < df["ymax"]
     df = df.drop(df[condition].index)
 
+    # compute bbox are for min area value to pass to albumentations
+    df["area"] = (df["xmax"] - df["xmin"]) * (df["ymax"] - df["ymin"])
+
     # export the DataFrame to a CSV file
     df.to_csv(save_path, index=False)
 
