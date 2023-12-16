@@ -110,6 +110,9 @@ class EarlyStopping(object):
         # minimum validation loss initialized to positive infinity
         self.val_loss_min = float('inf')
 
+        # create directory if not exists
+        os.makedirs(self.path, exist_ok=True)
+
     def __call__(self, val_loss, model):
         # check if it's the first validation, or there is an improvement, or no improvement
         if self.best_score is None:

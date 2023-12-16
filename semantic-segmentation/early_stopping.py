@@ -38,6 +38,9 @@ class EarlyStopping(object):
         # minimum validation loss initialized to positive infinity
         self.val_loss_min = float('inf')
 
+        # create directory if not exists
+        os.makedirs(self.path, exist_ok=True)
+
     def __call__(self, epoch, val_loss, model):
         """
         Call method to evaluate the validation loss and perform early stopping.
