@@ -77,9 +77,9 @@ class Solver(object):
 
             # loop over training data
             for batch_idx, (x_train, y_train) in loop:
-                # # used to check model improvements during the training
-                # if batch_idx == 0:
-                #     self.check_results()
+                # used to check model improvements during the training
+                if batch_idx == 0:
+                    self.check_results()
 
                 # move data and labels to the specified device
                 x_train = x_train.to(self.device)
