@@ -30,8 +30,8 @@ class CustomAlbumentations(object):
                 # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format="albumentations",
-                                        # min_area=1024, 
-                                        # min_visibility=0.1,
+                                        min_area=0,
+                                        min_visibility=0,
                                         label_fields=["class_labels"]))
 
         elif transform == "advance":
@@ -48,11 +48,11 @@ class CustomAlbumentations(object):
                 # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format="albumentations",
-                                        # min_area=1024, 
-                                        # min_visibility=0.1,
+                                        min_area=0, 
+                                        min_visibility=0,
                                         label_fields=["class_labels"]))
 
-    def __call__(self, image, bboxes, class_labels):    
+    def __call__(self, image, masks, bboxes, class_labels):    
         """
         Apply the defined transformations to the input image, bounding boxes, and class labels.
 
@@ -66,11 +66,13 @@ class CustomAlbumentations(object):
             - transformed_bboxes (list of tuples): Transformed bounding boxes.
             - transformed_class_labels (list): Transformed class labels.
         """
-        transformed = self.transform(image=image, 
+        transformed = self.transform(image=image,
+                                     masks=masks,
                                      bboxes=bboxes, 
                                      class_labels=class_labels)
         transformed_image = transformed["image"]
+        transformed_masks = transformed["masks"]
         transformed_bboxes = torch.as_tensor(transformed["bboxes"], dtype=torch.float32)
         transformed_class_labels = torch.as_tensor(transformed["class_labels"], dtype=torch.int64)
 
-        return transformed_image, transformed_bboxes, transformed_class_labels
+        return transformed_image, transformed_masks, transformed_bboxes, transformed_class_labels

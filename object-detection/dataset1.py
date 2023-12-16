@@ -10,11 +10,20 @@ of plants with associated bounding box annotations for various plant diseases.
 import os
 import cv2
 import torch
+import random
 import numpy as np
 import glob as glob
 from torch.utils.data import Dataset
 from data_augmentation import CustomAlbumentations
 from xml.etree import ElementTree as et # to load bbox files
+
+
+# reproducibility
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
 
 
 def collate_fn(batch):
@@ -53,7 +62,7 @@ class PlantDocDataset(Dataset):
         self.resize_w = resize_w
 
         # get all the image paths in sorted order
-        self.image_paths = glob.glob(f"{self.dir_path}/*.jpg")
+        self.image_paths = glob.glob(f"{self.dir_path}/JPEGImages/*.jpg")
         # extract image name removing all absolute/relative path
         self.all_images = sorted([image_path.split(os.path.sep)[-1] for image_path in self.image_paths])
         
@@ -74,14 +83,14 @@ class PlantDocDataset(Dataset):
         """
         # capture the image name and the full image path
         image_name = self.all_images[index]
-        image_path = os.path.join(self.dir_path, image_name)
+        image_path = os.path.join(self.dir_path, "JPEGImages", image_name)
         # read the image
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         # capture the corresponding `.xml` file for getting the annotations
         annot_filename = image_name[:-4] + ".xml"
-        annot_file_path = os.path.join(self.dir_path, annot_filename)
+        annot_file_path = os.path.join(self.dir_path, "Annotations", annot_filename)
 
         bboxes, labels = [], []
 
@@ -111,9 +120,9 @@ class PlantDocDataset(Dataset):
             xmin_final = xmin / image_width
             xmax_final = xmax / image_width
             ymin_final = ymin / image_height
-            yamx_final = ymax / image_height
+            ymax_final = ymax / image_height
             
-            bboxes.append([xmin_final, ymin_final, xmax_final, yamx_final])
+            bboxes.append([xmin_final, ymin_final, xmax_final, ymax_final])
         
         # bounding box to tensor
         bboxes = torch.as_tensor(bboxes, dtype=torch.float32)
@@ -141,16 +150,18 @@ class PlantDocDataset(Dataset):
 
         # # DEBUG
         # # convert transformed bounding boxes back to pixel coordinates for visualization (denormalize)
+        # import matplotlib.pyplot as plt
         # np_img = (image.cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8)
-        # bboxes[:, 0] *= self.resize_w # xmin
-        # bboxes[:, 2] *= self.resize_w # xmax
-        # bboxes[:, 1] *= self.resize_h # ymin
-        # bboxes[:, 3] *= self.resize_h # ymax
-        # for bbox in bboxes:
+        # bboxes[:, 0] *= self.resize_w  # xmin
+        # bboxes[:, 2] *= self.resize_w  # xmax
+        # bboxes[:, 1] *= self.resize_h  # ymin
+        # bboxes[:, 3] *= self.resize_h  # ymax
+        # for bbox, label in zip(bboxes, labels):
         #     xmin, ymin, xmax, ymax = map(int, bbox)
         #     cv2.rectangle(np_img, (xmin, ymin), (xmax, ymax), color=(255, 0, 0), thickness=1)
-        # import matplotlib.pyplot as plt
-        # plt.title("Augmented image")
+        #     # put class label on the top left of the rectangle
+        #     label_text = f"Class: {self.classes[label]}"
+        #     cv2.putText(np_img, label_text, (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
         # plt.imshow(np_img)
         # plt.show()
 
@@ -166,7 +177,7 @@ class PlantDocDataset(Dataset):
         return len(self.all_images)
 
 
-# # TEST
+# # TEST: PLANTDOC
 # import pandas as pd
 # from torch.utils.data import DataLoader
 # RESIZE = 224
@@ -193,3 +204,61 @@ class PlantDocDataset(Dataset):
         
 #     for i, data in enumerate(train_loader):
 #         print(f"Batch id: {i}")
+
+
+# TEST: PERSONS
+from torch.utils.data import DataLoader
+from solver import Solver
+from models import create_model
+# parameters
+EPOCHS = 200
+RESIZE = 224
+PATIENCE = 5
+BATCH_SIZE = 16
+TEST_IMGS_PATH = "./data/persons/Test/Test"
+TRAIN_PATH = "./data/persons/Train/Train"
+RESUME_TRAIN = True
+if __name__ == "__main__":
+    classes = ["__background__", "person", "person-like"]
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    train_set = PlantDocDataset(dir_path=TRAIN_PATH,
+                                resize_h=RESIZE, resize_w=RESIZE, classes=classes, data_aug=False)
+    test_set = PlantDocDataset(dir_path=TEST_IMGS_PATH,
+                               resize_h=RESIZE, resize_w=RESIZE, classes=classes, data_aug=False)
+    
+    # determine if GPU pinning is possible
+    pin = True if torch.cuda.is_available() else False
+
+    train_loader = DataLoader(dataset=train_set, pin_memory=pin,
+                              batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+    test_loader = DataLoader(dataset=test_set, pin_memory=pin,
+                             batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+ 
+    # initialize the model and move to the computation device
+    model = create_model(num_classes=len(classes))
+
+    if RESUME_TRAIN:
+        model.load_state_dict(torch.load("./checkpoints/model-epoch=3-val_loss=0.1809.pth", 
+                                         map_location=device))
+
+    model = model.to(device)
+
+    # get the model parameters
+    params = [p for p in model.parameters() if p.requires_grad]
+
+    # define the optimizer
+    optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
+
+    # create the Solver instance
+    solver = Solver(epochs=EPOCHS, 
+                    device=device, 
+                    train_loader=train_loader, 
+                    valid_loader=test_loader, 
+                    model=model, 
+                    optimizer=optimizer,
+                    patience=PATIENCE)
+    
+    # train the neural network
+    solver.train_net()
