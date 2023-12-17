@@ -117,6 +117,9 @@ class Solver(object):
                 all_preds = torch.cat([all_preds, y_pred], dim=0)
                 all_masks = torch.cat([all_masks, y_train], dim=0)
 
+                # update the loss value beside the progress bar for each iteration
+                loop.set_description(desc=f"Training loss - batch {batch_idx}, Loss: {loss.item():.3f}")
+
             loop.close()
 
             print(self.compute_metrics(preds=all_preds, masks=all_masks))
@@ -185,7 +188,7 @@ class Solver(object):
                         total=len(self.test_loader),
                         leave=True)
 
-            for _, (x_valid, y_valid) in loop:
+            for batch_idx, (x_valid, y_valid) in loop:
                 # move data and labels to the specified device
                 x_valid = x_valid.to(self.device)
                 y_valid = y_valid.unsqueeze(1).to(self.device)
@@ -208,6 +211,9 @@ class Solver(object):
 
                 all_preds = torch.cat([all_preds, y_pred], dim=0)
                 all_masks = torch.cat([all_masks, y_valid], dim=0)
+
+                # update the loss value beside the progress bar for each iteration
+                loop.set_description(desc=f"Validation loss - batch {batch_idx}: {loss.item():.3f}")
 
             loop.close()
 
