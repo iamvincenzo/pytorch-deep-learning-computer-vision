@@ -92,10 +92,9 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_train)
                 probs = torch.sigmoid(logits)
-                y_pred = torch.round(probs) # ?????
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_train) # probs ???
+                loss = self.criterion(probs, y_train)
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -196,10 +195,9 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_valid)
                 probs = torch.sigmoid(logits)
-                y_pred = torch.round(probs) # ?????
 
                 # calculate the loss
-                loss = self.criterion(y_pred, y_valid) # ??? probs
+                loss = self.criterion(probs, y_valid)
 
                 # record validation loss
                 valid_losses.append(loss.item())
