@@ -118,7 +118,7 @@ class Solver(object):
                 all_masks = torch.cat([all_masks, y_train], dim=0)
 
                 # update the loss value beside the progress bar for each iteration
-                loop.set_description(desc=f"Training loss - batch {batch_idx}, Loss: {loss.item():.3f}")
+                loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
 
             loop.close()
 
@@ -213,7 +213,7 @@ class Solver(object):
                 all_masks = torch.cat([all_masks, y_valid], dim=0)
 
                 # update the loss value beside the progress bar for each iteration
-                loop.set_description(desc=f"Validation loss - batch {batch_idx}: {loss.item():.3f}")
+                loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
 
             loop.close()
 
@@ -266,20 +266,14 @@ class Solver(object):
             for image, mask, pred in zip(images, masks, y_pred):
                 plt.figure(figsize=(12, 12))
 
-                np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8).copy()
-                plt.subplot(1, 3, 1)
-                plt.imshow(np_img)
-                plt.title("Image")
+                np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8)
+                plt.subplot(1, 3, 1); plt.imshow(np_img); plt.title("Image")
 
-                np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
-                plt.subplot(1, 3, 2)
-                plt.imshow(np_msk, cmap="gray")
-                plt.title("Mask")
+                np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
+                plt.subplot(1, 3, 2); plt.imshow(np_msk, cmap="gray"); plt.title("Mask")
 
-                np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
-                plt.subplot(1, 3, 3)
-                plt.imshow(np_pred, cmap="gray")
-                plt.title("Prediction mask")
+                np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
+                plt.subplot(1, 3, 3); plt.imshow(np_pred, cmap="gray"); plt.title("Prediction mask")
 
                 plt.show(block=False); plt.pause(5); plt.close()
 
