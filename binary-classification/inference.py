@@ -25,7 +25,7 @@ RESIZE = 224
 NUM_CLASSES = 1
 LABELS = {0: "Clean", 1: "Dirty"}
 TEST_SET_PTH = Path("./data/test")
-MODEL_PATH = Path("./checkpoints/model.pth")
+MODEL_PATH = Path("./checkpoints/model.pt")
 
 
 def get_prediction(model, x_test):

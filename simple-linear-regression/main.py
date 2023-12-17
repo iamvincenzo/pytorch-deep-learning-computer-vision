@@ -290,7 +290,7 @@ if __name__ == "__main__":
     MODEL_PATH = Path("./simple-linear-regression/checkpoints")
     MODEL_PATH.mkdir(parents=True, exist_ok=True)
 
-    MODEL_NAME = "01_pytorch_model.pth"
+    MODEL_NAME = "01_pytorch_model.pt"
     MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
 
     param_before = copy.deepcopy(net.state_dict())

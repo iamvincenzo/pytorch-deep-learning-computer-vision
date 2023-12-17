@@ -77,7 +77,7 @@ if __name__ == "__main__":
         # initialize the model and move to the computation device
         model = create_model(num_classes=len(classes))        
         if RESUME_TRAIN:
-            model.load_state_dict(torch.load("./checkpoints/model-epoch=3-val_loss=0.1809.pth", 
+            model.load_state_dict(torch.load("./checkpoints/model-epoch=3-val_loss=0.1809.pt", 
                                              map_location=device))
         model = model.to(device)
 

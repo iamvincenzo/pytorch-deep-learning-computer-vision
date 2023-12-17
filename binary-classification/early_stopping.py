@@ -110,7 +110,7 @@ class EarlyStopping(object):
             os.remove(self.best_model_path)
 
         # save the current best model's state_dict
-        self.best_model_path = os.path.join(self.path, f"model-epoch={epoch + 1}-val_loss={val_loss:.4f}.pth")
+        self.best_model_path = os.path.join(self.path, f"model-epoch={epoch + 1}-val_loss={val_loss:.4f}.pt")
         torch.save(obj=model.state_dict(), f=self.best_model_path)
 
         self.val_loss_min = val_loss

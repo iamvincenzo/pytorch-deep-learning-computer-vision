@@ -168,4 +168,4 @@ class Solver(object):
         torch.save({"epoch": epoch + 1,
                     "model_state_dict": self.model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict()}, 
-                    "./checkpoints/faster_rcnn.pth")
+                    "./checkpoints/faster_rcnn.pt")

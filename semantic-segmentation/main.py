@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     if RESUME_TRAIN:
         print("\nResuming training...")
-        model.load_state_dict(torch.load(f="./checkpoints/model-epoch=1-val_loss=0.5930.pth", 
+        model.load_state_dict(torch.load(f="./checkpoints/model-epoch=1-val_loss=0.5930.pt", 
                                          map_location=device))
         
     if FINETUNING:
