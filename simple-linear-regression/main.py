@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-from model import LinearRegrNet
-from model import RawLinearRegrNet
+from models import LinearRegrNet
+from models import RawLinearRegrNet
 
 
 class CustomDataset(Dataset):
