@@ -33,6 +33,7 @@ BATCH_SIZE = 2
 FINETUNING = False
 RESUME_TRAIN = True
 DATA_PATH = "./data/kaggle_3m/*/*"
+WORKERS = os.cpu_count() if os.cpu_count() < 4 else 4
 
 # main script
 if __name__ == "__main__":
@@ -48,9 +49,9 @@ if __name__ == "__main__":
     pin = True if torch.cuda.is_available() else False
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, 
-                              shuffle=True, num_workers=4, pin_memory=pin) # os.cpu_count()
+                              shuffle=True, num_workers=WORKERS, pin_memory=pin)
     test_loader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE, 
-                             shuffle=True, num_workers=4, pin_memory=pin) # os.cpu_count()
+                             shuffle=True, num_workers=WORKERS, pin_memory=pin)
         
     # determine the device for training (use GPU if available, otherwise use CPU)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

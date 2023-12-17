@@ -220,7 +220,7 @@ class Solver(object):
         # set the model back to training mode
         self.model.train()
 
-    def compute_metrics(preds, masks):
+    def compute_metrics(self, preds, masks):
         """
         Compute evaluation metrics including accuracy, precision, recall, and F1 score.
 
