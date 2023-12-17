@@ -8,7 +8,7 @@ from early_stopping import EarlyStopping
 
 
 class Solver(object):
-    def __init__(self, epochs, writer, train_loader, test_loader, device, model, optimizer, criterion, patience):
+    def __init__(self, epochs, start_epoch, writer, train_loader, test_loader, device, model, optimizer, scheduler, criterion, patience):
         """
         A class to handle training and validation of a PyTorch neural network.
 
@@ -27,12 +27,14 @@ class Solver(object):
             - None
         """
         self.epochs = epochs
+        self.start_epoch = start_epoch
         self.writer = writer
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.device = device
         self.model = model.to(self.device)
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.criterion = criterion
         self.patience = patience
 
@@ -68,7 +70,7 @@ class Solver(object):
         self.model.train()
 
         # loop over the dataset multiple times
-        for epoch in range(self.epochs):
+        for epoch in range(self.start_epoch, self.epochs):
             print(f"\nTraining iteration | Epoch[{epoch + 1}/{self.epochs}]")
 
             # use tqdm for a progress bar during training
@@ -81,9 +83,9 @@ class Solver(object):
 
             # loop over training data
             for batch_idx, (x_train, y_train) in loop:
-                # used to check model improvements during the training
-                if batch_idx == 0:
-                    self.check_results()
+                # # used to check model improvements during the training
+                # if batch_idx == 0:
+                #     self.check_results()
 
                 # move data and labels to the specified device
                 x_train = x_train.to(self.device)
@@ -133,6 +135,9 @@ class Solver(object):
             avg_train_losses.append(train_loss)
             avg_valid_losses.append(valid_loss)
 
+            # step should be called after validate
+            self.scheduler.step(valid_loss)
+
             # print some statistics
             print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} | "
                   f"validation-loss: {valid_loss:.4f}")
@@ -145,10 +150,17 @@ class Solver(object):
 
             # clear lists to track next epoch
             train_losses = []
-            valid_losses = []
+            valid_losses = []    
+
+            checkpoint = {
+                "epoch": epoch, # + 1,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict(),
+            }       
 
             # early stopping checks for improvement in validation loss
-            early_stopping(epoch, valid_loss, self.model)
+            early_stopping(checkpoint=checkpoint, val_loss=valid_loss)
 
             if early_stopping.early_stop:
                 print("Early stopping...")
@@ -276,3 +288,64 @@ class Solver(object):
                 plt.show(block=False); plt.pause(5); plt.close()
 
         self.model.train()
+
+    def test_model(self):
+        """
+        Tests the neural network on the specified DataLoader for validation data.
+
+        Records test losses.
+        """
+        print(f"\nStarting test...\n")
+
+        all_masks = torch.tensor([], device=self.device)
+        all_preds = torch.tensor([], device=self.device)
+        test_losses = []
+
+        self.model.eval()
+
+        # no need to calculate the gradients for outputs
+        with torch.no_grad():
+            loop = tqdm(iterable=enumerate(self.test_loader),
+                        total=len(self.test_loader),
+                        leave=True)
+
+            for batch_idx, (images, masks) in loop:
+                # move data and labels to the specified device
+                images = images.to(self.device)
+                masks = masks.unsqueeze(1).to(self.device)
+
+                # forward pass: compute predicted outputs by passing inputs to the model
+                logits = self.model(images)
+                probs = torch.sigmoid(logits)
+                # calculate the loss
+                loss = self.criterion(probs, masks)
+                # record validation loss
+                test_losses.append(loss.item())
+                # since we are using BCEWithLogitsLoss
+                # logits --> probabilities --> labels
+                probs = torch.sigmoid(logits)
+                preds = torch.round(probs)
+                all_preds = torch.cat([all_preds, preds], dim=0)
+                all_masks = torch.cat([all_masks, masks], dim=0)
+
+                # update the loss value beside the progress bar for each iteration
+                loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
+
+                for image, mask, pred in zip(images, masks, preds):
+                    plt.figure(figsize=(12, 12))
+
+                    np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8)
+                    plt.subplot(1, 3, 1); plt.imshow(np_img); plt.title("Image")
+
+                    np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
+                    plt.subplot(1, 3, 2); plt.imshow(np_msk, cmap="gray"); plt.title("Mask")
+
+                    np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
+                    plt.subplot(1, 3, 3); plt.imshow(np_pred, cmap="gray"); plt.title("Prediction mask")
+
+                    plt.show(block=False); plt.pause(5); plt.close()
+
+            loop.close()
+
+            print(self.compute_metrics(preds=all_preds, masks=all_masks))
+            print(f"Mean test loss: {np.mean(test_losses):.4f}")
