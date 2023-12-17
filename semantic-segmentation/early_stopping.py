@@ -14,11 +14,11 @@ class EarlyStopping(object):
         - delta (float): Minimum change in the monitored quantity to qualify as an improvement.
                         Default: 0
         - path (str): Path for the checkpoint to be saved to.
-                        Default: './checkpoints/'
+                        Default: './checkpoints'
         - verbose (bool): If True, prints a message for each validation loss improvement.
                         Default: False
     """
-    def __init__(self, patience=5, delta=0, path="./checkpoints/", verbose=False):
+    def __init__(self, patience=5, delta=0, path="./checkpoints", verbose=False):
         # initialize the parameters
         self.patience = patience
         self.delta = delta

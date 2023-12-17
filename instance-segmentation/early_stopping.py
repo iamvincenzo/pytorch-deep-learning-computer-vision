@@ -9,12 +9,13 @@ class EarlyStopping(object):
         Copyright (c) 2018 Bjarte Mehus Sunde
     
     Args:
-        patience (int): How long to wait after the last time validation loss improved.
+        - patience (int): How long to wait after the last time validation loss improved.
                         Default: 5
-        delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+        - delta (float): Minimum change in the monitored quantity to qualify as an improvement.
                         Default: 0
-        path (str): Path for the checkpoint to be saved to.
-        verbose (bool): If True, prints a message for each validation loss improvement.
+        - path (str): Path for the checkpoint to be saved to.
+                        Default: './checkpoints'
+        - verbose (bool): If True, prints a message for each validation loss improvement.
                         Default: False
     """
     def __init__(self, patience=5, delta=0, path="./checkpoints", verbose=False):
@@ -45,9 +46,12 @@ class EarlyStopping(object):
         Call method to evaluate the validation loss and perform early stopping.
         
         Args:
-            epoch (int): Current epoch number.
-            val_loss (float): Validation loss value.
-            model (torch.nn.Module): PyTorch model to be saved.
+            - epoch (int): Current epoch number.
+            - val_loss (float): Validation loss value.
+            - model (torch.nn.Module): PyTorch model to be saved.
+
+        Returns:
+            - None.
         """
         # check if it's the first validation, or there is an improvement, or no improvement
         if self.best_score is None:
@@ -62,9 +66,9 @@ class EarlyStopping(object):
         Handle the case of the first validation.
 
         Args:
-            epoch (int): Current epoch number.
-            val_loss (float): Validation loss value.
-            model (torch.nn.Module): PyTorch model to be saved.
+            - epoch (int): Current epoch number.
+            - val_loss (float): Validation loss value.
+            - model (torch.nn.Module): PyTorch model to be saved.
         """
         self.best_score = val_loss
         self.save_checkpoint(epoch, val_loss, model)
@@ -84,9 +88,9 @@ class EarlyStopping(object):
         Handle the case of an improvement in validation loss.
 
         Args:
-            epoch (int): Current epoch number.
-            val_loss (float): Validation loss value.
-            model (torch.nn.Module): PyTorch model to be saved.
+            - epoch (int): Current epoch number.
+            - val_loss (float): Validation loss value.
+            - model (torch.nn.Module): PyTorch model to be saved.
         """
         self.counter = 0
         self.best_score = val_loss
@@ -97,9 +101,9 @@ class EarlyStopping(object):
         Saves model when validation loss decreases.
 
         Args:
-            epoch (int): Current epoch number.
-            val_loss (float): Validation loss value.
-            model (torch.nn.Module): PyTorch model to be saved.
+            - epoch (int): Current epoch number.
+            - val_loss (float): Validation loss value.
+            - model (torch.nn.Module): PyTorch model to be saved.
         """
         if self.verbose:
             print(f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model...")
