@@ -29,7 +29,7 @@ class MRIDataset(Dataset):
         # define image transformation pipeline
         if data_aug:
             self.transform = A.Compose([
-                A.Resize(height=self.resize_h, width=self.resize_w),
+                # A.Resize(height=self.resize_h, width=self.resize_w),
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
                 A.RandomRotate90(p=0.5),
@@ -42,7 +42,7 @@ class MRIDataset(Dataset):
             ])
         else:
             self.transform = A.Compose([
-                A.Resize(height=self.resize_h, width=self.resize_w),
+                # A.Resize(height=self.resize_h, width=self.resize_w),
                 ToTensorV2()
             ])
 

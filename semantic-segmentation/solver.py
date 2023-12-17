@@ -1,4 +1,5 @@
 import torch
+import random
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -74,6 +75,9 @@ class Solver(object):
             loop = tqdm(iterable=enumerate(self.train_loader),
                         total=len(self.train_loader),
                         leave=True)
+            
+            all_masks = torch.tensor([])
+            all_preds = torch.tensor([])
 
             # loop over training data
             for batch_idx, (x_train, y_train) in loop:
@@ -88,9 +92,10 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_train)
                 probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs) # ?????
 
                 # calculate the loss
-                loss = self.criterion(probs, y_train)
+                loss = self.criterion(y_pred, y_train) # probs ???
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -104,18 +109,17 @@ class Solver(object):
                 # record training loss
                 train_losses.append(loss.item())
 
-                # # since we are using BCEWithLogitsLoss
-                # # logits --> probabilities --> labels
-                # probs = torch.sigmoid(logits)
-                # y_pred = torch.round(probs)
+                # since we are using BCEWithLogitsLoss
+                # logits --> probabilities --> labels
+                probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs)
+
+                all_preds = torch.cat([all_preds, y_pred], dim=0)
+                all_masks = torch.cat([all_masks, y_train], dim=0)
 
             loop.close()
 
-            # self.compute_metrics(epoch=epoch,
-            #                      batch_idx=batch_idx,
-            #                      predictions=predictions,
-            #                      targets=targets,
-            #                      train=True)
+            print(self.compute_metrics(preds=all_preds, masks=all_masks))
 
             # validate the model on the validation set
             self.valid_net(epoch=epoch, valid_losses=valid_losses)
@@ -170,6 +174,9 @@ class Solver(object):
         """
         print(f"\nStarting validation...\n")
 
+        all_masks = torch.tensor([])
+        all_preds = torch.tensor([])
+
         self.model.eval()
 
         # no need to calculate the gradients for outputs
@@ -186,30 +193,30 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_valid)
                 probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs) # ?????
 
                 # calculate the loss
-                loss = self.criterion(probs, y_valid)
+                loss = self.criterion(y_pred, y_valid) # ??? probs
 
                 # record validation loss
                 valid_losses.append(loss.item())
 
-                # # since we are using BCEWithLogitsLoss
-                # # logits --> probabilities --> labels
-                # probs = torch.sigmoid(logits)
-                # y_pred = torch.round(probs)
+                # since we are using BCEWithLogitsLoss
+                # logits --> probabilities --> labels
+                probs = torch.sigmoid(logits)
+                y_pred = torch.round(probs)
+
+                all_preds = torch.cat([all_preds, y_pred], dim=0)
+                all_masks = torch.cat([all_masks, y_valid], dim=0)
 
             loop.close()
 
-            # self.compute_metrics(epoch=epoch,
-            #                      batch_idx=1,
-            #                      predictions=predictions,
-            #                      targets=targets,
-            #                      train=False)
+            print(self.compute_metrics(preds=all_preds, masks=all_masks))
 
         # set the model back to training mode
         self.model.train()
 
-    def compute_metrics(mask, pred):
+    def compute_metrics(preds, masks):
         """
         Compute evaluation metrics including accuracy, precision, recall, and F1 score.
 
@@ -220,10 +227,10 @@ class Solver(object):
         Returns:
             - dict: Dictionary containing computed metrics.
         """
-        tp = torch.sum((pred == 1) & (mask == 1)).item()
-        fp = torch.sum((pred == 1) & (mask == 0)).item()
-        fn = torch.sum((pred == 0) & (mask == 1)).item()
-        tn = torch.sum((pred == 0) & (mask == 0)).item()
+        tp = torch.sum((preds == 1) & (masks == 1)).item()
+        fp = torch.sum((preds == 1) & (masks == 0)).item()
+        fn = torch.sum((preds == 0) & (masks == 1)).item()
+        tn = torch.sum((preds == 0) & (masks == 0)).item()
 
         n = 1e-20
 
@@ -243,32 +250,31 @@ class Solver(object):
         self.model.eval()
 
         with torch.no_grad():
-            images, masks = next(iter(self.test_loader))
+            images, masks = random.choice(list(self.test_loader))
             images = images.to(self.device)
             masks = masks.unsqueeze(1).to(self.device)
             logits = self.model(images)
             probs = torch.sigmoid(logits)
             y_pred = torch.round(probs)
 
-            plt.figure(figsize=(12, 12))
+            for image, mask, pred in zip(images, masks, y_pred):
+                plt.figure(figsize=(12, 12))
 
-            np_img = (images[0].squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8).copy()
-            plt.subplot(1, 3, 1)
-            plt.imshow(np_img)
-            plt.title("Original image")
+                np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8).copy()
+                plt.subplot(1, 3, 1)
+                plt.imshow(np_img)
+                plt.title("Image")
 
-            np_msk = (masks[0].squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
-            plt.subplot(1, 3, 2)
-            plt.imshow(np_msk, cmap="gray")
-            plt.title("Original Mask")
+                np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
+                plt.subplot(1, 3, 2)
+                plt.imshow(np_msk, cmap="gray")
+                plt.title("Mask")
 
-            np_pred = (y_pred[0].squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
-            plt.subplot(1, 3, 3)
-            plt.imshow(np_pred, cmap="gray")
-            plt.title("Prediction")
+                np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8).copy()
+                plt.subplot(1, 3, 3)
+                plt.imshow(np_pred, cmap="gray")
+                plt.title("Prediction mask")
 
-            plt.show(block=False); plt.pause(5); plt.close()
-
-            # print(np.unique(np_msk), np.unique(np_pred))
+                plt.show(block=False); plt.pause(5); plt.close()
 
         self.model.train()
