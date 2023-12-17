@@ -2,6 +2,7 @@
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-orange?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/) [![Windows](https://img.shields.io/badge/Windows-11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows/) [![VS Code](https://img.shields.io/badge/VS%20Code-v1.61.0-007ACC?style=flat-square&logo=visual-studio-code&logoColor=white)](https://code.visualstudio.com/) [![Python](https://img.shields.io/badge/Python-3.10-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/) [![PyTorch](https://img.shields.io/badge/PyTorch-v1.10.0-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/) [![Keras](https://img.shields.io/badge/Keras-2.8.0-D00000?style=flat-square&logo=keras&logoColor=white)](https://keras.io/) [![TensorFlow](https://img.shields.io/badge/TensorFlow-v2.8.0-FF6F00?style=flat-square&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/) [![Optuna](https://img.shields.io/badge/Optuna-v2.10.0-EE4D5A?style=flat-square&logo=optuna&logoColor=white)](https://optuna.org/) [![Matplotlib](https://img.shields.io/badge/Matplotlib-v3.4.3-FF5733?style=flat-square&logo=python&logoColor=white)](https://matplotlib.org/) [![NumPy](https://img.shields.io/badge/NumPy-v1.21.0-4C65AF?style=flat-square&logo=numpy&logoColor=white)](https://numpy.org/) [![Pandas](https://img.shields.io/badge/Pandas-v1.3.3-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
 
+
 A street cleaning company aims to ensure the effectiveness of their cleaning efforts by verifying whether the streets are clean or contain garbage. This repository contains a solution for a binary classification problem using computer vision. The dataset consists of images representing clean streets (class 0: "clean") and streets with garbage (class 1: "dirty"). The goal is to develop a machine learning model that can accurately distinguish between clean and dirty streets.
 
 ## Dataset
@@ -13,7 +14,7 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 
 ## Project Structure
 
-- **main.py:** Script for running the training and validation of the model in k-fold cross-validation or hold-out split validation mode.
+- **main.py:** Script for running the training and validation of the model in k-fold split cross-validation or hold-out split validation mode.
 - **custom_dataset.py:** Custom dataset class for loading and preprocessing images.
 - **early_stopping.py:** Implementation of an early stopping mechanism to prevent overfitting.
 - **hyperparameters_optimization.py:** Script for hyperparameter optimization (optimizer, learning rate, etc.) using Optuna.
@@ -21,10 +22,10 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 - **k_fold_cross_validation.py:** Script to launch training and k-fold cross-validation for robust model evaluation.
 - **solver.py:** Training and validation logic.
 - **plotting_utils.py:** Utility functions for plotting results.
-- **stats.py:** Computation of statistics for training and validation and plotting.
+- **stats.py:** Computation of statistics for training and validation.
 - **inference.py:** Inference script for making predictions on new test data.
 
-- **keras-binary-classification/main.py:** Script for running the training and validation of the model in k-fold cross-validation with keras-tensorflow.
+- **keras-binary-classification/main.py:** Script for running the training and validation of the model in k-fold cross-validation mode with keras-tensorflow.
 
 ## Installation
 
@@ -38,8 +39,8 @@ The dataset is available on Kaggle at [CleanDirty Road Classification](https://w
 2. Create a Conda environment:
 
     ```bash
-    conda create -n street_classification
-    conda activate street_classification
+    conda create -n streets_classification
+    conda activate streets_classification
     ```
 
 2. Install dependencies:

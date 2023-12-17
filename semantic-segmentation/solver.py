@@ -76,8 +76,8 @@ class Solver(object):
                         total=len(self.train_loader),
                         leave=True)
             
-            all_masks = torch.tensor([])
-            all_preds = torch.tensor([])
+            all_masks = torch.tensor([], device=self.device)
+            all_preds = torch.tensor([], device=self.device)
 
             # loop over training data
             for batch_idx, (x_train, y_train) in loop:
@@ -177,8 +177,8 @@ class Solver(object):
         """
         print(f"\nStarting validation...\n")
 
-        all_masks = torch.tensor([])
-        all_preds = torch.tensor([])
+        all_masks = torch.tensor([], device=self.device)
+        all_preds = torch.tensor([], device=self.device)
 
         self.model.eval()
 
