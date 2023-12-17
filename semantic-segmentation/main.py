@@ -30,6 +30,7 @@ EPOCHS = 200
 PATIENCE = 5
 L2_REG = 0.001
 BATCH_SIZE = 2
+FINETUNING = False
 RESUME_TRAIN = True
 DATA_PATH = "./data/kaggle_3m/*/*"
 
@@ -62,6 +63,12 @@ if __name__ == "__main__":
         print("\nResuming training...")
         model.load_state_dict(torch.load(f="./checkpoints/model-epoch=1-val_loss=0.5930.pth", 
                                          map_location=device))
+        
+    if FINETUNING:
+        print("\nFinetuning...")
+        model = torch.hub.load("mateuszbuda/brain-segmentation-pytorch", "unet", 
+                               in_channels=3, out_channels=1, init_features=32, pretrained=True)
+        model = model.to(device)
 
     # define the optimizer for training the model
     optimizer = torch.optim.Adam(params=model.parameters(), lr=LR, 
@@ -73,12 +80,12 @@ if __name__ == "__main__":
     # create an instance of the Solver class for training and validation
     solver = Solver(epochs=EPOCHS,
                     writer=None,
-                    train_loader=train_loader, 
-                    test_loader=test_loader, 
-                    device=device, 
-                    model=model, 
-                    optimizer=optimizer, 
-                    criterion=loss_fn, 
+                    train_loader=train_loader,
+                    test_loader=test_loader,
+                    device=device,
+                    model=model,
+                    optimizer=optimizer,
+                    criterion=loss_fn,
                     patience=PATIENCE)
 
     # train the neural network
