@@ -2,6 +2,7 @@ import os
 import torch
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -9,9 +10,12 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from models import UNet
 from solver import Solver
 from models import IoULoss
+from utils import plot_image
 from dataset import FreiHandDataset
 from dataset import create_dataframe
+from utils import get_keypoint_location
 from early_stopping import load_checkpoint
+from utils import draw_keypoints_connection
 
 # reproducibility
 SEED = 42
@@ -59,49 +63,59 @@ if __name__ == "__main__":
     test_loader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE, 
                              shuffle=False, num_workers=WORKERS, pin_memory=pin)
     
-    # # DEBUG
-    # from utils import plot_image
-    # for i, data in enumerate(train_loader):
-    #     plot_image(image=data["image"][0],
-    #                heatmaps=data["heatmaps"][0],
-    #                keypoints=data["keypoints"][0],
-    #                resize=RESIZE)
+    # DEBUG
+    for i, data in enumerate(train_loader):
+        for image, heatmaps, keypoints in zip(data["image"], data["heatmaps"], data["keypoints"]):
+            # get (x, y) keypoints coordinates
+            x_locations, y_locations = get_keypoint_location(heatmaps=heatmaps)
+            # for x, y in zip(x_locations, y_locations):
+            #     print(f"Estimated (x, y) location: ({int(x.item())}, {int(y.item())})")
+            # # visualize the heatmaps and keypoints
+            # for heatmap, x, y in zip(heatmaps, x_locations, y_locations):
+            #     plt.imshow(heatmap.squeeze(), cmap="gray")
+            #     plt.scatter(int(x.item()), int(y.item()), c="red", marker="x")
+            #     plt.show()
+            # # visualize image, heatmaps and keypoints
+            # plot_image(image=image, heatmaps=heatmaps,
+            #            keypoints=keypoints, resize=RESIZE)
+            # viosualize image and keypoint connections
+            draw_keypoints_connection(image=image, uv_coords=(x_locations, y_locations))
         
-    # determine the device for training (use GPU if available, otherwise use CPU)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"\nDevice: {device}")
+    # # determine the device for training (use GPU if available, otherwise use CPU)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # print(f"\nDevice: {device}")
 
-    # instantiate the U-Net model and move it to the specified device
-    model = UNet(in_channels=3, out_channels=N_KEYPOINTS).to(device)
+    # # instantiate the U-Net model and move it to the specified device
+    # model = UNet(in_channels=3, out_channels=N_KEYPOINTS).to(device)
 
-    # define the optimizer for training the model
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=LR, 
-                                 betas=(0.9, 0.999), weight_decay=L2_REG)
+    # # define the optimizer for training the model
+    # optimizer = torch.optim.Adam(params=model.parameters(), lr=LR, 
+    #                              betas=(0.9, 0.999), weight_decay=L2_REG)
     
-    # define learning rate scheduler
-    scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5, min_lr=1e-7, verbose=True)
+    # # define learning rate scheduler
+    # scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5, min_lr=1e-7, verbose=True)
     
-    # resume training from a checkpoint if specified
-    if RESUME_TRAIN:
-        print("\nLoading model...")
-        model, optimizer, start_epoch, scheduler = load_checkpoint(fpath="./checkpoints/model.pt",
-                                                                   model=model, optimizer=optimizer)
+    # # resume training from a checkpoint if specified
+    # if RESUME_TRAIN:
+    #     print("\nLoading model...")
+    #     model, optimizer, start_epoch, scheduler = load_checkpoint(fpath="./checkpoints/model.pt",
+    #                                                                model=model, optimizer=optimizer)
     
-    # define the loss function for training the model
-    loss_fn = IoULoss()
+    # # define the loss function for training the model
+    # loss_fn = IoULoss()
 
-    # create an instance of the Solver class for training and validation
-    solver = Solver(epochs=EPOCHS,
-                    start_epoch=start_epoch,
-                    writer=None,
-                    train_loader=train_loader,
-                    test_loader=test_loader,
-                    device=device,
-                    model=model,
-                    optimizer=optimizer,
-                    scheduler=scheduler,
-                    criterion=loss_fn,
-                    patience=PATIENCE)
+    # # create an instance of the Solver class for training and validation
+    # solver = Solver(epochs=EPOCHS,
+    #                 start_epoch=start_epoch,
+    #                 writer=None,
+    #                 train_loader=train_loader,
+    #                 test_loader=test_loader,
+    #                 device=device,
+    #                 model=model,
+    #                 optimizer=optimizer,
+    #                 scheduler=scheduler,
+    #                 criterion=loss_fn,
+    #                 patience=PATIENCE)
 
-    # train the neural network
-    solver.train_net()
+    # # train the neural network
+    # solver.train_net()
