@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
+from torchvision.transforms import transforms as T
 
 # tenros: (B x C x H x W)
 # numpy: (H x W x C)
@@ -12,14 +13,14 @@ def create_circle_mask(size, radius, center):
     
     return mask.astype(float)
 
-def create_heatmap_batch(batch_size, height, width, circle_radius):
-    heatmaps = np.zeros((batch_size, 1, height, width), dtype=float)
+def create_heatmap_batch(channels, height, width, circle_radius):
+    heatmaps = np.zeros((channels, height, width), dtype=float)
     
-    for i in range(batch_size):
+    for i in range(channels):
         # Randomly select position for the circle
         center = np.random.randint(circle_radius, height - circle_radius, size=2)
         circle_mask = create_circle_mask(height, circle_radius, center)
-        heatmaps[i, 0, :, :] = circle_mask
+        heatmaps[i, :, :] = circle_mask
     
     return heatmaps
 
@@ -72,15 +73,19 @@ if __name__ == "__main__":
 
     heatmap_batch = heatmap_batch.astype(dtype=np.float32)
 
-    x_locations, y_locations = get_keypoint_location(heatmaps=torch.from_numpy(heatmap_batch))
+    h_t = T.ToTensor()(heatmap_batch.transpose(1, 2, 0)).unsqueeze(0)
+
+    x_locations, y_locations = get_keypoint_location(heatmaps=h_t)
+
+    x_locations, y_locations = x_locations.squeeze(), y_locations.squeeze()
 
     for x, y in zip(x_locations, y_locations):
-        print(f"Estimated (x, y) location: ({torch.round(x).item()}, {torch.round(y).item()})")
+        print(f"Estimated (x, y) location: ({int(x.item())}, {int(y.item())})")
 
     # visualize the heatmaps and keypoints
     for heatmap, x, y in zip(heatmap_batch, x_locations, y_locations):
         plt.imshow(heatmap.squeeze(), cmap="gray")
-        plt.scatter(torch.round(x).item(), torch.round(y).item(), c="red", marker="x")
+        plt.scatter(int(x.item()), int(y.item()), c="red", marker="x")
         plt.show()
 
 
