@@ -92,6 +92,11 @@ The FreiHAND Dataset is available on [Uni-Freiburg](https://lmb.informatik.uni-f
     <img src="./imgs/final-output.png" alt="Final 2D hand output">
 </p>
 
+## Credits
+- [2D Hand Pose Estimation RGB GitHub repository](https://github.com/OlgaChernytska/2D-Hand-Pose-Estimation-RGB)
+- [2D Hand Pose Estimation RGB explained](https://townrdsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-approach-explained-4348d6d79b11)
+- [2D Hand Pose Estimation RGB let's code it](https://towardsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-lets-code-it-6c82046d4acf)
+
 ## License
 
 This project is licensed under the [GNU GENERAL PUBLIC LICENSE  Version 3](../LICENSE).
