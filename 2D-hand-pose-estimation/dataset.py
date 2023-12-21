@@ -1,8 +1,3 @@
-"""
-Credits:
-    https://towardsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-approach-explained-4348d6d79b11
-    https://towardsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-lets-code-it-6c82046d4acf
-"""
 import os
 import cv2
 import json
