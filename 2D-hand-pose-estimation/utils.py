@@ -79,7 +79,7 @@ def plot_image(image, heatmaps, keypoints, resize=128):
     plt.subplot(1, 2, 1)
     plt.imshow(image), plt.title("Image")
     plt.subplot(1, 2, 2)
-    plt.imshow(htot.squeeze(), cmap="gray")
+    plt.imshow(htot.squeeze()) # , cmap="gray")
     plt.title("Heatmap")
 
     plt.show()
@@ -114,7 +114,7 @@ def draw_keypoints_connection(image, uv_coords):
                 start_point = int(u_coords[idx]), int(v_coords[idx])
                 end_point = int(u_coords[idx1]), int(v_coords[idx1])
 
-                radius = 2
+                radius = 1
                 thickness = 1
                 color = cmap["color"]
 

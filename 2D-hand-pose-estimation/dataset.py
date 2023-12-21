@@ -142,10 +142,11 @@ class FreiHandDataset(Dataset):
         heatmaps = self.blur_heatmpas(heatmaps=heatmaps)
 
         # apply image transformation
-        image = self.transform(image)
+        transf_image = self.transform(image)
+        raw_image = T.ToTensor()(image)
         heatmaps = T.ToTensor()(heatmaps.transpose(1, 2, 0).astype(dtype=np.float32))
 
-        return {"image": image, "heatmaps": heatmaps, "keypoints": keypoints}
+        return {"raw_image": raw_image, "image": transf_image, "heatmaps": heatmaps, "keypoints": keypoints}
 
     def __len__(self):
         """
