@@ -22,7 +22,7 @@ The FreiHAND Dataset is available on [Uni-Freiburg](https://lmb.informatik.uni-f
 -	3D shape annotation
 
 <p align="center">
-    <img src="./imgs/dataset.png" alt="Dataset examples">
+    <img src="./imgs/dataset.png" alt="Dataset examples" width=900>
 </p>
 
 ## Project Structure
@@ -81,20 +81,32 @@ The FreiHAND Dataset is available on [Uni-Freiburg](https://lmb.informatik.uni-f
 ## Results
 
 <p align="center">
-    <img src="./imgs/heatmaps.png" alt="Heatmaps image">
+    <img src="./imgs/heatmaps.png" alt="Heatmaps image" width=900/>
 </p>
 
 <p align="center">
-    <img src="./imgs/heatmaps-tot.png" alt="Heatmaps image">
+    <img src="./imgs/heatmaps-tot.png" alt="Heatmaps image" width=900/>
 </p>
 
 <p align="center">
-    <img src="./imgs/final-output.png" alt="Final 2D hand output">
+    <img src="./imgs/final-output.png" alt="Final 2D hand output" width=450/>
+</p>
+
+<p align="center">
+    <img src="./imgs/heatmap1.png" alt="Heatmaps image" width=900/> 
+</p>
+
+<p align="center">
+    <img src="./imgs/heatmap2.png" alt="Heatmaps image" width=900/> 
+</p>
+
+<p align="center">
+    <img src="./imgs/hand1.png" alt="Final 2D hand output" width=450/>
 </p>
 
 ## Credits
 - [2D Hand Pose Estimation RGB GitHub repository](https://github.com/OlgaChernytska/2D-Hand-Pose-Estimation-RGB)
-- [2D Hand Pose Estimation RGB explained](https://townrdsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-approach-explained-4348d6d79b11)
+- [2D Hand Pose Estimation RGB explained](https://towardsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-approach-explained-4348d6d79b11)
 - [2D Hand Pose Estimation RGB let's code it](https://towardsdatascience.com/gentle-introduction-to-2d-hand-pose-estimation-lets-code-it-6c82046d4acf)
 
 ## License

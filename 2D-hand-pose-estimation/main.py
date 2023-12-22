@@ -71,15 +71,15 @@ if __name__ == "__main__":
             # get (x, y) keypoints coordinates (respect to 128 x 128)
             x_locations, y_locations = get_keypoint_location(heatmaps=heatmaps)
             
-            # # visualize the heatmaps and keypoints
-            # plt.figure(); i = 0
-            # for heatmap, x, y in zip(heatmaps, x_locations, y_locations):
-            #     i += 1; plt.subplot(3, 7, i); plt.imshow(heatmap.squeeze()) # , cmap="gray")
-            #     # plt.scatter(int(x.item()), int(y.item()), c="red", marker="x", linewidths=0.3)
-            # plt.show()
+            # visualize the heatmaps and keypoints
+            plt.figure(); i = 0
+            for heatmap, x, y in zip(heatmaps, x_locations, y_locations):
+                i += 1; plt.subplot(3, 7, i); plt.imshow(heatmap.squeeze()) # , cmap="gray")
+                # plt.scatter(int(x.item()), int(y.item()), c="red", marker="x", linewidths=0.3)
+            plt.show()
             
-            # # visualize image, heatmaps and keypoints (resize respect original 224 x 224)
-            # plot_image(image=image, heatmaps=heatmaps, keypoints=keypoints, resize=ORIGINAL_SIZE)
+            # visualize image, heatmaps and keypoints (resize respect original 224 x 224)
+            plot_image(image=image, heatmaps=heatmaps, keypoints=keypoints, resize=ORIGINAL_SIZE)
             
             # visualize image and keypoint connections (resize respect original 224 x 224)
             ratio = (ORIGINAL_SIZE/RESIZE)
