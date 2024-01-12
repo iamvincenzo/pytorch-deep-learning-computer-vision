@@ -1,8 +1,10 @@
+import torch
 import numpy as np
+from typing import Optional
 import matplotlib.pyplot as plt
 
 
-def show_preds(images, masks, preds, alpha=None):
+def show_preds(images: torch.Tensor, masks: torch.Tensor, preds: torch.Tensor, alpha: Optional[float] = None) -> None:
     """
     Display a batch of images along with their ground truth masks and predicted masks.
 
@@ -14,7 +16,7 @@ def show_preds(images, masks, preds, alpha=None):
           If None, the default value is 0.6.
     
     Returns:
-        - None
+        - None.
     """
     for image, mask, pred in zip(images, masks, preds):
         # define a figure
@@ -44,6 +46,8 @@ def show_preds(images, masks, preds, alpha=None):
         colored_pred_mask = cmap(np_pred_msk / np.max(np_pred_msk)) if np.max(np_pred_msk) != 0 else cmap(np.zeros_like(np_pred_msk))  # handle division by zero        
         # blend the original image with the colored predicted mask
         blended_img_pred = alpha * np_img_normalized + (1 - alpha) * colored_pred_mask[..., :3]  # use only RGB channels
+
+        # print(f"gt-mask: {np.unique(np_gt_msk)}, pred-mask: {np.unique(np_pred_msk)}")
 
         # display all
         plt.subplot(2, 3, 1); plt.imshow(np_img); plt.title("Image")
