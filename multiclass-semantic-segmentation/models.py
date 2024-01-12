@@ -1,25 +1,46 @@
 import torch
 import torch.nn as nn
+from torchmetrics.classification import MulticlassJaccardIndex
+from torchvision.models.segmentation import deeplabv3_resnet101
 
-def dc_loss(pred, target):
-    """
-    Compute the Dice Coefficient loss between predicted and target masks.
 
-    Args:
-        - pred (torch.Tensor): Predicted mask.
-        - target (torch.Tensor): Target mask.
+class IOULoss(nn.Module):
+    def __init__(self, num_classes, average="none", weight=None):
+        """
+        Intersection over Union (IOU) loss for multiclass semantic segmentation.
 
-    Returns:
-        - torch.Tensor: Dice Coefficient loss.
-    """
-    smooth = 1.
+        Args:
+            - num_classes (int): Number of classes in the segmentation task.
+            - average (str, optional): Specifies whether to compute the average loss across the batch.
+                Possible values are "none", "micro", "macro", "weighted", or None. Default is "none".
+            - weight (Tensor, optional): A tensor of weights for each class. If None, all classes have equal weight.
+                Default is None.
+        """
+        super(IOULoss, self).__init__()
+        self.metric = MulticlassJaccardIndex(num_classes=num_classes, average=average)
+        self.num_classes = num_classes
+        self.average = average
+        self.weight = weight
 
-    predf = pred.view(-1)
-    targetf = target.view(-1)
-    intersection = (predf * targetf).sum()
-    
-    return 1 - ((2. * intersection + smooth) /
-                (predf.sum() + targetf.sum() + smooth))
+    def forward(self, predicted, target):
+        """
+        Compute the IOU loss for multiclass semantic segmentation.
+
+        Args:
+            - predicted (Tensor): Predicted segmentation masks (logits).
+            - target (Tensor): Ground truth segmentation masks (class indices).
+
+        Returns:
+            - Tensor: IOU loss.
+        """
+        iou = self.metric(predicted, target)
+
+        iou_loss = 1 - iou
+
+        if self.average == "none":
+            iou_loss = (iou_loss * self.weight).mean()
+
+        return iou_loss
 
 def conv_layer(input_channels, output_channels):
     """
@@ -99,3 +120,12 @@ class UNet(nn.Module):
         x = self.output(x)
         
         return x
+
+
+# def prepare_model(num_classes=3):
+#     model = deeplabv3_resnet101(weights="DEFAULT")
+    
+#     model.classifier[4] = nn.Conv2d(256, num_classes, 1)
+#     model.aux_classifier[4] = nn.Conv2d(256, num_classes, 1)
+    
+#     return model
