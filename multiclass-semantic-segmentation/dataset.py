@@ -25,7 +25,6 @@ class BucherDataset(Dataset):
             - None
         """
         super(BucherDataset, self).__init__()
-        self.classes = CLASSES
         self.resize_h = resize_h
         self.resize_w = resize_w
         self.all_images = images
