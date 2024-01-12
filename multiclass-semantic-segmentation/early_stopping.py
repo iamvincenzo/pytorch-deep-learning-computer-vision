@@ -1,8 +1,12 @@
 import os
 import torch
+import torch.nn as nn
+import torch.optim as optim
+from typing import Optional
+from torch.optim.lr_scheduler import LRScheduler
 
 
-def load_checkpoint(fpath, model, optimizer, scheduler=None):
+def load_checkpoint(fpath: str, model: nn.Module, optimizer: optim.Optimizer, scheduler: Optional[LRScheduler] = None) -> None:
     """
     Load the model and optimizer state from a checkpoint file.
 
@@ -31,22 +35,25 @@ def load_checkpoint(fpath, model, optimizer, scheduler=None):
 
 
 class EarlyStopping(object):
-    def __init__(self, patience=5, delta=0, path="./checkpoints", verbose=False):
+    def __init__(self, patience: int = 5, delta: int = 0, path: str = "./checkpoints", verbose: bool = False) -> None:
         """
         Early stops the training if validation loss doesn't improve after a given patience.
         
-        Credits:
-            Copyright (c) 2018 Bjarte Mehus Sunde
-        
         Args:
             - patience (int): How long to wait after the last time validation loss improved.
-                            Default: 5
+                            Default: 5.
             - delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                            Default: 0
+                            Default: 0.
             - path (str): Path for the checkpoint to be saved to.
-                            Default: './checkpoints'
+                            Default: './checkpoints'.
             - verbose (bool): If True, prints a message for each validation loss improvement.
-                            Default: False
+                            Default: False.
+                            
+        Returns:
+            - None.
+
+        Credits:
+            - Copyright (c) 2018 Bjarte Mehus Sunde.
         """
         self.patience = patience
         self.delta = delta
@@ -69,7 +76,7 @@ class EarlyStopping(object):
         # create directory if not exists
         os.makedirs(self.path, exist_ok=True)
 
-    def __call__(self, checkpoint, val_loss):
+    def __call__(self, checkpoint: dict, val_loss: float) -> None:
         """
         Call method to evaluate the validation loss and perform early stopping.
         
@@ -89,7 +96,7 @@ class EarlyStopping(object):
         else:
             self._handle_improvement(checkpoint=checkpoint, val_loss=val_loss)
 
-    def _handle_first_validation(self, checkpoint, val_loss):
+    def _handle_first_validation(self, checkpoint: dict, val_loss: float) -> None:
         """
         Handle the case of the first validation.
 
@@ -97,13 +104,22 @@ class EarlyStopping(object):
             - epoch (int): Current epoch number.
             - val_loss (float): Validation loss value.
             - model (torch.nn.Module): PyTorch model to be saved.
+
+        Returns:
+            - None.
         """
         self.best_score = val_loss
         self.save_checkpoint(checkpoint=checkpoint)
 
-    def _handle_no_improvement(self):
+    def _handle_no_improvement(self) -> None:
         """
         Handle the case of no improvement in validation loss.
+
+        Args:
+            - None.
+
+        Returns:
+            - None.
         """
         self.counter += 1
         print(f"EarlyStopping counter: {self.counter} out of {self.patience}")
@@ -111,7 +127,7 @@ class EarlyStopping(object):
             # if the counter exceeds patience, set the early_stop flag
             self.early_stop = True
 
-    def _handle_improvement(self, checkpoint, val_loss):
+    def _handle_improvement(self, checkpoint: dict, val_loss: int) -> None:
         """
         Handle the case of an improvement in validation loss.
 
@@ -119,12 +135,15 @@ class EarlyStopping(object):
             - epoch (int): Current epoch number.
             - val_loss (float): Validation loss value.
             - model (torch.nn.Module): PyTorch model to be saved.
+            
+        Returns:
+            - None.
         """
         self.counter = 0
         self.best_score = val_loss
         self.save_checkpoint(checkpoint=checkpoint)
 
-    def save_checkpoint(self, checkpoint):
+    def save_checkpoint(self, checkpoint: dict) -> None:
         """
         Saves model when validation loss decreases.
 
@@ -132,6 +151,9 @@ class EarlyStopping(object):
             - epoch (int): Current epoch number.
             - val_loss (float): Validation loss value.
             - model (torch.nn.Module): PyTorch model to be saved.
+
+        Returns:
+            - None.
         """
         if self.verbose:
             print(f"Validation loss decreased ({self.val_loss_min:.6f} --> {self.best_score:.6f}). Saving model...")

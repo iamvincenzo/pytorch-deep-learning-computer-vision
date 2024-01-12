@@ -1,4 +1,5 @@
 import cv2
+import torch
 import numpy as np
 from glob import glob
 import albumentations as A
@@ -11,7 +12,7 @@ CLASSES = ["background", "foliage", "waste"]
 
 
 class BucherDataset(Dataset):
-    def __init__(self, images, resize_h, resize_w, data_aug):
+    def __init__(self, images: list, resize_h: int, resize_w: int, data_aug: bool) -> None:
         """
         A PyTorch Dataset class for loading and augmenting Bucher images and masks.
 
@@ -22,7 +23,7 @@ class BucherDataset(Dataset):
             - data_aug (bool): Flag indicating whether to apply data augmentation.
 
         Returns:
-            - None
+            - None.
         """
         super(BucherDataset, self).__init__()
         self.resize_h = resize_h
@@ -50,7 +51,7 @@ class BucherDataset(Dataset):
                 ToTensorV2()
             ])
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Retrieves and transforms Bucher image and mask at the specified index.
 
@@ -78,9 +79,12 @@ class BucherDataset(Dataset):
 
         return transformed["image"], transformed["mask"].long().unsqueeze(0)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Returns the total number of samples in the dataset.
+
+        Args:
+            - None.
 
         Returns:
             - int: Total number of samples in the dataset.
