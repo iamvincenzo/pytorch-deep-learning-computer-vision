@@ -2,7 +2,12 @@ import torch
 import random
 import numpy as np
 from tqdm import tqdm
-from torchmetrics.classification import MulticlassJaccardIndex
+import torch.nn as nn
+import torch.optim as optim
+from typing import Any, Optional
+from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import LRScheduler
+# from torchmetrics.classification import MulticlassJaccardIndex
 
 from plotting_utils import show_preds
 from early_stopping import EarlyStopping
@@ -11,7 +16,8 @@ from early_stopping import EarlyStopping
 
 
 class Solver(object):
-    def __init__(self, epochs, start_epoch, writer, train_loader, test_loader, device, model, optimizer, scheduler, criterion, patience):
+    def __init__(self, epochs: int, start_epoch: int, writer: Any, train_loader: DataLoader, test_loader: DataLoader, 
+                 device: torch.device, model: nn.Module, optimizer: optim.Optimizer, scheduler: LRScheduler, criterion: nn.Module, patience: int) -> None:
         """
         A class to handle training and validation of a PyTorch neural network.
 
@@ -27,7 +33,7 @@ class Solver(object):
             - patience (int): Number of epochs to wait for improvement before early stopping.
         
         Returns:
-            - None
+            - None.
         """
         self.epochs = epochs
         self.start_epoch = start_epoch
@@ -50,22 +56,22 @@ class Solver(object):
             "model_acc": 0.0
         }
 
-    def get_metrics(self, y_true, y_pred, num_classes, smooth=2.22e-16):
+    def get_metrics(self, y_true: torch.Tensor, y_pred: torch.Tensor, num_classes: int, smooth: Optional[float] = 2.22e-16):
         """
         Calculate IoU, dice coefficient, recall, for single class and the mean of the classes.
 
         Args:
-            - y_true: target masks (n_samples, h, w), where each pixel is represented with the class id
-            - y_pred: predicted masks (n_samples, h, w)
-            - num_classes: number of classes
+            - y_true: target masks (n_samples, h, w), where each pixel is represented with the class id.
+            - y_pred: predicted masks (n_samples, h, w).
+            - num_classes: number of classes.
 
         Returns:
-            - mIoU: mean IoU
-            - IoU_classes: list of IoU on classes
-            - mean_dice_coeff: mean dice coefficient
-            - dice_classes: list of dice coefficient on classes
-            - macro_recall: mean recall
-            - recall_classes: list of recall on classes
+            - mIoU: mean IoU.
+            - IoU_classes: list of IoU on classes.
+            - mean_dice_coeff: mean dice coefficient.
+            - dice_classes: list of dice coefficient on classes.
+            - macro_recall: mean recall.
+            - recall_classes: list of recall on classes.
         """
         IoU_classes = []
         dice_classes = []
@@ -97,10 +103,16 @@ class Solver(object):
 
         return mIoU, IoU_classes, mean_dice_coeff, dice_classes, macro_recall, recall_classes
 
-    def check_results(self):
+    def check_results(self) -> None:
         """
         Method used to visualize show some samples at the first batch
         of each epoch to check model improvements.
+
+        Args:
+            - None.
+
+        Returns:
+            - None. 
         """
         self.model.eval()
 
@@ -126,13 +138,19 @@ class Solver(object):
 
         self.model.train()
 
-    def train_net(self):
+    def train_net(self) -> None:
         """
         Trains the neural network using the specified DataLoader for training data.
 
         This method also performs early stopping based on the validation loss.
 
         Prints training and validation statistics for each epoch.
+
+        Args:
+            - None.
+
+        Returns:
+            - None.
         """
         print(f"\nStarting training...")
 
@@ -261,15 +279,18 @@ class Solver(object):
             # free up system resources used by the writer
             self.writer.close()
 
-    def valid_net(self, epoch, valid_losses, show_results=False):
+    def valid_net(self, epoch: int, valid_losses: list, show_results: Optional[bool] = False) -> None:
         """
         Validates the neural network on the specified DataLoader for validation data.
 
         Records validation losses in the provided list.
 
         Args:
-            epoch (int): The current epoch during validation.
-            valid_losses (list): List to record validation losses.
+            - epoch (int): The current epoch during validation.
+            - valid_losses (list): List to record validation losses.
+
+        Returns:
+            - None.
         """
         print(f"\nStarting validation...\n")
 
