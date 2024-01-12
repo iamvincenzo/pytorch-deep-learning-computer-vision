@@ -2,6 +2,7 @@ import torch
 import random
 import numpy as np
 from tqdm import tqdm
+from torchmetrics.classification import MulticlassJaccardIndex
 
 from plotting_utils import show_preds
 from early_stopping import EarlyStopping
@@ -49,7 +50,7 @@ class Solver(object):
             "model_acc": 0.0
         }
 
-    def get_metrics(self, y_true, y_pred, num_classes):
+    def get_metrics(self, y_true, y_pred, num_classes, smooth=2.22e-16):
         """
         Calculate IoU, dice coefficient, recall, for single class and the mean of the classes.
 
@@ -76,18 +77,23 @@ class Solver(object):
             true_preds = torch.sum(y_pred == class_id)
 
             union = true_labels + true_preds - TP
-            IoU_classes.append((TP / (union + 2.22e-16)).item())
-            dice_classes.append((2 * TP / (true_labels + true_preds + 2.22e-16)).item())
-            recall_classes.append((TP / (true_labels + 2.22e-16)).item())
+            IoU_classes.append((TP / (union + smooth)).item())
+            dice_classes.append((2 * TP / (true_labels + true_preds + smooth)).item())
+            recall_classes.append((TP / (true_labels + smooth)).item())
 
-        mIoU = round(sum(IoU_classes) / len(IoU_classes), 2)
-        IoU_classes = np.round(IoU_classes, 2)
+        mIoU = round(sum(IoU_classes) / len(IoU_classes), 3)                        
+        # metric = MulticlassJaccardIndex(num_classes=3, average="macro")
+        # mIoU = metric(y_pred, y_true)
+        
+        IoU_classes = np.round(IoU_classes, 3)
+        # metric = MulticlassJaccardIndex(num_classes=3, average="none")
+        # IoU_classes = metric(y_pred, y_true)
 
-        mean_dice_coeff = round(sum(dice_classes)/len(dice_classes), 2)
-        dice_classes = np.round(dice_classes, 2)
+        mean_dice_coeff = round(sum(dice_classes)/len(dice_classes), 3)
+        dice_classes = np.round(dice_classes, 3)
 
-        macro_recall = round(sum(recall_classes)/len(recall_classes), 2)
-        recall_classes = np.round(recall_classes, 2)
+        macro_recall = round(sum(recall_classes)/len(recall_classes), 3)
+        recall_classes = np.round(recall_classes, 3)
 
         return mIoU, IoU_classes, mean_dice_coeff, dice_classes, macro_recall, recall_classes
 
@@ -202,7 +208,6 @@ class Solver(object):
             print(f"IoU_classess: {IoU_classes}")
             print(f"dice_classes: {dice_classes}")
             print(f"recall_classes: {recall_classes}\n")
-            # self.compute_metrics(loader=self.train_loader)
 
             # validate the model on the validation set
             self.valid_net(epoch=epoch, valid_losses=valid_losses, show_results=False)
@@ -318,7 +323,6 @@ class Solver(object):
             print(f"IoU_classess: {IoU_classes}")
             print(f"dice_classes: {dice_classes}")
             print(f"recall_classes: {recall_classes}\n")
-            # self.compute_metrics(loader=self.test_loader)
 
         # set the model back to training mode
         self.model.train()
