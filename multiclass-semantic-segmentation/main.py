@@ -17,7 +17,6 @@ from segmentation_models_pytorch.utils.train import ValidEpoch
 from models import UNet
 from solver import Solver
 from dataset import BucherDataset
-from utils import calculate_class_weights
 from early_stopping import load_checkpoint
 
 
@@ -40,13 +39,40 @@ N_CLASSES = 3
 BATCH_SIZE = 4
 START_EPOCH = 0
 ACTIVATION = None
-RESUME_TRAIN = True
+RESUME_TRAIN = False
 ENCODER = "resnet18"
 ENCODER_WEIGHTS = None # "imagenet"
 IMGS_PTH = "./data/images/*.png"
 WORKERS = os.cpu_count() if os.cpu_count() < 4 else 4
 L2_REG = 0 # 0.004
 
+
+def calculate_class_weights(dataloader: DataLoader, num_classes: int) -> torch.Tensor:
+    """
+    Calculate class weights based on inverse class frequencies in a dataset.
+
+    Parameters:
+        - dataloader (DataLoader): The DataLoader containing the dataset.
+        - num_classes (int): The number of classes in the dataset.
+
+    Returns:
+        - torch.Tensor: A tensor containing the calculated class weights.
+    """
+    # initialize a tensor to store the count of samples for each class
+    class_counts = torch.zeros(num_classes)
+
+    # calculate class frequencies
+    for _, masks in dataloader:
+        for class_idx in range(num_classes):
+            class_counts[class_idx] += torch.sum(masks == class_idx).item()
+
+    # calculate inverse class frequencies, avoiding division by zero
+    inverse_class_frequencies = torch.where(class_counts > 0, 1 / class_counts, 0)
+
+    # normalize weights
+    weights = inverse_class_frequencies / inverse_class_frequencies.sum()
+
+    return weights
 
 # main script
 if __name__ == "__main__":
@@ -81,7 +107,7 @@ if __name__ == "__main__":
                                  betas=(0.9, 0.999), weight_decay=L2_REG)
     
     # define learning rate scheduler
-    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=5, min_lr=1e-7, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=3, min_lr=1e-7, verbose=True)
     
     if RESUME_TRAIN:
         print("\nLoading model...")
@@ -92,8 +118,7 @@ if __name__ == "__main__":
     # https://discuss.pytorch.org/t/loss-function-for-multi-class-semantic-segmentation/117570
     # w = calculate_class_weights(train_loader, num_classes=3) # 0.00042003 0.006354 0.99323
     # w[2] = w[1] # same weight for foliage and waste
-    w = torch.tensor([0.00042003, 0.006354, 0.008354],
-                     dtype=torch.float32, device=device)
+    w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
     loss_fn = nn.CrossEntropyLoss(weight=w.to(device))
     # loss_fn = smp.losses.DiceLoss(mode="multiclass")
     # loss_fn.__name__ = "Dice_loss"
@@ -110,11 +135,9 @@ if __name__ == "__main__":
                     scheduler=scheduler,
                     criterion=loss_fn,
                     patience=PATIENCE)
-    
-    solver.test_memory()
 
-    # # train the neural network
-    # solver.train_net()
+    # train the neural network
+    solver.train_net()
 
     # # check the model ability
     # solver.check_results()
