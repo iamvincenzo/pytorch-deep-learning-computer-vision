@@ -160,6 +160,8 @@ cython_debug/
 #.idea/
 
 */data
+*/trash
+*/best_models
 */checkpoints
 trash-stuff
 temp.py
