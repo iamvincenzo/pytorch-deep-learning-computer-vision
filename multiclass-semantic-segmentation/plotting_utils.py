@@ -55,7 +55,6 @@ def show_preds(images, masks, preds, alpha=None):
         plt.show(block=False); plt.pause(7); plt.close()
 
 
-
 # def show_batch_preds(images, masks, preds):
 #     """
 #     Display a batch of images along with their ground truth masks and predicted masks.
