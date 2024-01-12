@@ -5,7 +5,7 @@ from torchvision.models.segmentation import deeplabv3_resnet101
 
 
 class IOULoss(nn.Module):
-    def __init__(self, num_classes, average="none", weight=None):
+    def __init__(self, num_classes, average="macro", weight=None):
         """
         Intersection over Union (IOU) loss for multiclass semantic segmentation.
 
@@ -17,10 +17,14 @@ class IOULoss(nn.Module):
                 Default is None.
         """
         super(IOULoss, self).__init__()
-        self.metric = MulticlassJaccardIndex(num_classes=num_classes, average=average)
-        self.num_classes = num_classes
-        self.average = average
         self.weight = weight
+        self.average = average
+        self.num_classes = num_classes
+        self.metric = MulticlassJaccardIndex(average=average,
+                                             num_classes=num_classes)        
+        if self.average == "none":
+            assert self.weight is not None, "Weight should be provided when average='none'."
+            assert self.weight.dtype == torch.float32, "Input tensor 'weight' must be of type float32."
 
     def forward(self, predicted, target):
         """
@@ -33,6 +37,10 @@ class IOULoss(nn.Module):
         Returns:
             - Tensor: IOU loss.
         """
+        # check tensor types
+        assert predicted.dtype == torch.float32, "Input tensor 'predicted' must be of type float32."
+        assert target.dtype == torch.float32, "Input tensor 'target' must be of type float32."
+
         iou = self.metric(predicted, target)
 
         iou_loss = 1 - iou
@@ -41,6 +49,7 @@ class IOULoss(nn.Module):
             iou_loss = (iou_loss * self.weight).mean()
 
         return iou_loss
+
 
 def conv_layer(input_channels, output_channels):
     """
