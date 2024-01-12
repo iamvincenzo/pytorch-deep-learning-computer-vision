@@ -186,7 +186,7 @@ class Solver(object):
 
                 # move data and labels to the specified device
                 x_train = x_train.to(self.device)
-                y_train = y_train.to(self.device)
+                y_train = y_train.to(self.device).squeeze(1)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_train)
@@ -197,7 +197,7 @@ class Solver(object):
                 y_pred = torch.argmax(probs, dim=1)
 
                 # calculate the loss
-                loss = self.criterion(logits, y_train.squeeze(1))
+                loss = self.criterion(logits, y_train)
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -212,10 +212,13 @@ class Solver(object):
                 train_losses.append(loss.item())
 
                 all_preds = torch.cat([all_preds, y_pred], dim=0)
-                all_masks = torch.cat([all_masks, y_train.squeeze()], dim=0)
+                all_masks = torch.cat([all_masks, y_train], dim=0)
+
+                mIoU, IoU_classes, *_ = self.get_metrics(y_true=y_train, y_pred=y_pred, num_classes=3)
 
                 # update the loss value beside the progress bar for each iteration
-                loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
+                loop.set_postfix({"loss": round(loss.item(), 3),"mIoU": mIoU, "IoU-classes":IoU_classes})
+                # loop.set_description(desc=f"loss: {loss.item():.3f}, mIoU: {mIoU}, IoU-classes: {IoU_classes}")
 
             loop.close()
 
@@ -308,7 +311,7 @@ class Solver(object):
             for batch_idx, (x_valid, y_valid) in loop:
                 # move data and labels to the specified device
                 x_valid = x_valid.to(self.device)
-                y_valid = y_valid.to(self.device)
+                y_valid = y_valid.to(self.device).squeeze(1)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_valid)
@@ -319,16 +322,19 @@ class Solver(object):
                 y_pred = torch.argmax(probs, dim=1)
 
                 # calculate the loss
-                loss = self.criterion(logits, y_valid.squeeze(1))
+                loss = self.criterion(logits, y_valid)
 
                 # record validation loss
                 valid_losses.append(loss.item())
     
                 all_preds = torch.cat([all_preds, y_pred], dim=0)
-                all_masks = torch.cat([all_masks, y_valid.squeeze()], dim=0)
+                all_masks = torch.cat([all_masks, y_valid], dim=0)
+
+                mIoU, IoU_classes, *_ = self.get_metrics(y_true=y_valid, y_pred=y_pred, num_classes=3)
 
                 # update the loss value beside the progress bar for each iteration
-                loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
+                loop.set_postfix({"loss": round(loss.item(), 3),"mIoU": mIoU, "IoU-classes":IoU_classes})
+                # loop.set_description(desc=f"loss: {loss.item():.3f}, mIoU: {mIoU}, IoU-classes: {IoU_classes}")
 
                 if show_results:
                     show_preds(images=x_valid, masks=y_valid, preds=y_pred, alpha=None)
