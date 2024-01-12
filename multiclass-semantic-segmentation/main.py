@@ -39,7 +39,7 @@ N_CLASSES = 3
 BATCH_SIZE = 4
 START_EPOCH = 0
 ACTIVATION = None
-RESUME_TRAIN = False
+RESUME_TRAIN = True
 ENCODER = "resnet18"
 ENCODER_WEIGHTS = None # "imagenet"
 IMGS_PTH = "./data/images/*.png"
@@ -111,14 +111,14 @@ if __name__ == "__main__":
     
     if RESUME_TRAIN:
         print("\nLoading model...")
-        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=23-val_loss=0.3964.pt",
+        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=29-val_loss=0.1494.pt",
                                                         model=model, optimizer=optimizer) # , scheduler
     
     # define the loss function for training the model
     # https://discuss.pytorch.org/t/loss-function-for-multi-class-semantic-segmentation/117570
-    # w = calculate_class_weights(train_loader, num_classes=3) # 0.00042003 0.006354 0.99323
-    # w[2] = w[1] # same weight for foliage and waste
-    w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
+    w = calculate_class_weights(train_loader, num_classes=3) # 0.00042003 0.006354 0.99323
+    w[2] = w[1] # same weight for foliage and waste
+    # w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
     loss_fn = nn.CrossEntropyLoss(weight=w.to(device))
     # loss_fn = smp.losses.DiceLoss(mode="multiclass")
     # loss_fn.__name__ = "Dice_loss"
@@ -136,26 +136,17 @@ if __name__ == "__main__":
                     criterion=loss_fn,
                     patience=PATIENCE)
 
-    # train the neural network
-    solver.train_net()
+    # # train the neural network
+    # solver.train_net()
 
     # # check the model ability
     # solver.check_results()
 
-    # # test the neural network
-    # test_losses = []
-    # solver.valid_net(epoch=None, valid_losses=test_losses, show_results=True)
-    # test_loss = np.average(test_losses)
-    # print(f"Mean test loss: {np.mean(test_losses):.4f}\n")
-
-
-
-
-
-
-
-
-
+    # test the neural network
+    test_losses = []
+    solver.valid_net(epoch=None, valid_losses=test_losses, show_results=True)
+    test_loss = np.average(test_losses)
+    print(f"Mean test loss: {np.mean(test_losses):.4f}\n")
 
 
     # SMP - Package
