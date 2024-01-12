@@ -24,10 +24,10 @@ def load_checkpoint(fpath, model, optimizer, scheduler=None):
     
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-    if "scheduler_state_dict" in checkpoint:
-        scheduler.load_state_dict(checkpoint["scheduler_state_dict"]) 
+    # if "scheduler_state_dict" in checkpoint:
+    #     scheduler.load_state_dict(checkpoint["scheduler_state_dict"]) 
 
-    return model, optimizer, start_epoch, scheduler
+    return model, optimizer, start_epoch #, scheduler
 
 
 class EarlyStopping(object):

@@ -2,9 +2,11 @@ import torch
 import random
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
+from plotting_utils import show_preds
 from early_stopping import EarlyStopping
+# from plotting_utils import show_batch_preds
+# from plotting_utils import show_batch_preds_with_transparency
 
 
 class Solver(object):
@@ -35,7 +37,7 @@ class Solver(object):
         self.model = model.to(self.device)
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.criterion = criterion
+        self.criterion = criterion.to(self.device)
         self.patience = patience
 
         self.model_reslts = {
@@ -46,6 +48,77 @@ class Solver(object):
             "model_loss": 0.0,
             "model_acc": 0.0
         }
+
+    def get_metrics(self, y_true, y_pred, num_classes):
+        """
+        Calculate IoU, dice coefficient, recall, for single class and the mean of the classes.
+
+        Args:
+            - y_true: target masks (n_samples, h, w), where each pixel is represented with the class id
+            - y_pred: predicted masks (n_samples, h, w)
+            - num_classes: number of classes
+
+        Returns:
+            - mIoU: mean IoU
+            - IoU_classes: list of IoU on classes
+            - mean_dice_coeff: mean dice coefficient
+            - dice_classes: list of dice coefficient on classes
+            - macro_recall: mean recall
+            - recall_classes: list of recall on classes
+        """
+        IoU_classes = []
+        dice_classes = []
+        recall_classes = []
+
+        for class_id in range(num_classes):
+            TP = torch.sum((y_true == class_id) & (y_pred == class_id))
+            true_labels = torch.sum(y_true == class_id)
+            true_preds = torch.sum(y_pred == class_id)
+
+            union = true_labels + true_preds - TP
+            IoU_classes.append((TP / (union + 2.22e-16)).item())
+            dice_classes.append((2 * TP / (true_labels + true_preds + 2.22e-16)).item())
+            recall_classes.append((TP / (true_labels + 2.22e-16)).item())
+
+        mIoU = round(sum(IoU_classes) / len(IoU_classes), 2)
+        IoU_classes = np.round(IoU_classes, 2)
+
+        mean_dice_coeff = round(sum(dice_classes)/len(dice_classes), 2)
+        dice_classes = np.round(dice_classes, 2)
+
+        macro_recall = round(sum(recall_classes)/len(recall_classes), 2)
+        recall_classes = np.round(recall_classes, 2)
+
+        return mIoU, IoU_classes, mean_dice_coeff, dice_classes, macro_recall, recall_classes
+
+    def check_results(self):
+        """
+        Method used to visualize show some samples at the first batch
+        of each epoch to check model improvements.
+        """
+        self.model.eval()
+
+        with torch.no_grad():
+            # choose a random batch from the validation set
+            images, masks = random.choice(list(self.test_loader))
+
+            # move data and labels to the specified device
+            images = images.to(self.device)
+            masks = masks.to(self.device)
+
+            # forward pass: compute predicted outputs by passing inputs to the model
+            logits = self.model(images)
+            
+            # since we are using CrossEntropyLoss
+            # logits --> probabilities --> labels
+            probs = torch.softmax(logits, dim=1)
+            preds = torch.argmax(probs, dim=1)
+
+            show_preds(images=images, masks=masks, preds=preds, alpha=None)
+            # show_batch_preds(images=images, masks=masks, preds=y_pred)
+            # show_batch_preds_with_transparency(images=images, masks=masks, preds=preds, alpha=None)
+
+        self.model.train()
 
     def train_net(self):
         """
@@ -80,31 +153,27 @@ class Solver(object):
             
             all_masks = torch.tensor([], device=self.device)
             all_preds = torch.tensor([], device=self.device)
-
+            
             # loop over training data
             for batch_idx, (x_train, y_train) in loop:
-
-                # TO REMOVE
-                #####################################################################################
-                # # used to check model improvements during the training
-                # if batch_idx == 0:
-                #     self.check_results()
-                #####################################################################################
+                # used to check model improvements during the training
+                if batch_idx == 0:
+                    self.check_results()
 
                 # move data and labels to the specified device
                 x_train = x_train.to(self.device)
-                y_train = y_train.to(self.device).type(torch.long)
+                y_train = y_train.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_train)
 
-                # TO REMOVE
-                #####################################################################################
-                # probs = torch.sigmoid(logits)
-                #####################################################################################
+                # since we are using CrossEntropyLoss
+                # logits --> probabilities --> labels
+                probs = torch.softmax(logits, dim=1)
+                y_pred = torch.argmax(probs, dim=1)
 
                 # calculate the loss
-                loss = self.criterion(logits, y_train)
+                loss = self.criterion(logits, y_train.squeeze(1))
 
                 # clear the gradients of all optimized variables
                 self.optimizer.zero_grad()
@@ -118,31 +187,25 @@ class Solver(object):
                 # record training loss
                 train_losses.append(loss.item())
 
-                # TO REMOVE
-                #####################################################################################
-                # # since we are using BCEWithLogitsLoss
-                # # logits --> probabilities --> labels
-                # probs = torch.sigmoid(logits)
-                # y_pred = torch.round(probs)
-
-                # all_preds = torch.cat([all_preds, y_pred], dim=0)
-                # all_masks = torch.cat([all_masks, y_train], dim=0)
-                #####################################################################################
+                all_preds = torch.cat([all_preds, y_pred], dim=0)
+                all_masks = torch.cat([all_masks, y_train.squeeze()], dim=0)
 
                 # update the loss value beside the progress bar for each iteration
                 loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
 
             loop.close()
 
-            # TO REMOVE
-            #####################################################################################
-            # print(self.compute_metrics(preds=all_preds, masks=all_masks))
-            #####################################################################################
-
-            self.check_accuracy(loader=self.train_loader)
+            mIoU, IoU_classes, mean_dice_coeff, dice_classes, macro_recall, recall_classes = self.get_metrics(y_true=all_masks,
+                                                                                                              y_pred=all_preds,
+                                                                                                              num_classes=3)
+            print(f"\nmIoU: {mIoU}, mean_dice_coeff: {mean_dice_coeff}, macro_recall: {macro_recall}")            
+            print(f"IoU_classess: {IoU_classes}")
+            print(f"dice_classes: {dice_classes}")
+            print(f"recall_classes: {recall_classes}\n")
+            # self.compute_metrics(loader=self.train_loader)
 
             # validate the model on the validation set
-            self.valid_net(epoch=epoch, valid_losses=valid_losses)
+            self.valid_net(epoch=epoch, valid_losses=valid_losses, show_results=False)
 
             # print training/validation statistics
             # calculate average loss over an epoch
@@ -151,8 +214,9 @@ class Solver(object):
             avg_train_losses.append(train_loss)
             avg_valid_losses.append(valid_loss)
 
-            # step should be called after validate
-            self.scheduler.step(valid_loss)
+            if self.scheduler is not None:
+                # step should be called after validate
+                self.scheduler.step(valid_loss)
 
             # print some statistics
             print(f"\nEpoch[{epoch + 1}/{self.epochs}] | train-loss: {train_loss:.4f} | "
@@ -172,7 +236,7 @@ class Solver(object):
                 "epoch": epoch, # + 1,
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
-                "scheduler_state_dict": self.scheduler.state_dict(),
+                # "scheduler_state_dict": self.scheduler.state_dict(),
             }       
 
             # early stopping checks for improvement in validation loss
@@ -192,7 +256,7 @@ class Solver(object):
             # free up system resources used by the writer
             self.writer.close()
 
-    def valid_net(self, epoch, valid_losses):
+    def valid_net(self, epoch, valid_losses, show_results=False):
         """
         Validates the neural network on the specified DataLoader for validation data.
 
@@ -218,196 +282,43 @@ class Solver(object):
             for batch_idx, (x_valid, y_valid) in loop:
                 # move data and labels to the specified device
                 x_valid = x_valid.to(self.device)
-                y_valid = y_valid.to(self.device).type(torch.long)
+                y_valid = y_valid.to(self.device)
 
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_valid)
 
-                # TO REMOVE
-                #####################################################################################
-                # probs = torch.sigmoid(logits)
-                #####################################################################################
+                # since we are using CrossEntropyLoss
+                # logits --> probabilities --> labels
+                probs = torch.softmax(logits, dim=1)
+                y_pred = torch.argmax(probs, dim=1)
 
                 # calculate the loss
-                loss = self.criterion(logits, y_valid)
+                loss = self.criterion(logits, y_valid.squeeze(1))
 
                 # record validation loss
                 valid_losses.append(loss.item())
-
-                # TO REMOVE
-                #####################################################################################
-                # # since we are using BCEWithLogitsLoss
-                # # logits --> probabilities --> labels
-                # probs = torch.sigmoid(logits)
-                # y_pred = torch.round(probs)
-
-                # all_preds = torch.cat([all_preds, y_pred], dim=0)
-                # all_masks = torch.cat([all_masks, y_valid], dim=0)
-                #####################################################################################
+    
+                all_preds = torch.cat([all_preds, y_pred], dim=0)
+                all_masks = torch.cat([all_masks, y_valid.squeeze()], dim=0)
 
                 # update the loss value beside the progress bar for each iteration
                 loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
 
+                if show_results:
+                    show_preds(images=x_valid, masks=y_valid, preds=y_pred, alpha=None)
+                    # show_batch_preds(images=x_valid, masks=y_valid, preds=y_pred)
+                    # show_batch_preds_with_transparency(images=x_valid, masks=y_valid, preds=y_pred, alpha=None)
+
             loop.close()
 
-            # TO REMOVE
-            #####################################################################################
-            # print(self.compute_metrics(preds=all_preds, masks=all_masks))
-            #####################################################################################
-
-            self.check_accuracy(loader=self.test_loader)
+            mIoU, IoU_classes, mean_dice_coeff, dice_classes, macro_recall, recall_classes = self.get_metrics(y_true=all_masks,
+                                                                                                              y_pred=all_preds,
+                                                                                                              num_classes=3)
+            print(f"\nmIoU: {mIoU}, mean_dice_coeff: {mean_dice_coeff}, macro_recall: {macro_recall}")            
+            print(f"IoU_classess: {IoU_classes}")
+            print(f"dice_classes: {dice_classes}")
+            print(f"recall_classes: {recall_classes}\n")
+            # self.compute_metrics(loader=self.test_loader)
 
         # set the model back to training mode
         self.model.train()
-
-    def check_accuracy(self, loader):
-        """
-        Evaluate the accuracy and dice score of the model on the given data loader.
-
-        Args:
-            loader (torch.utils.data.DataLoader): DataLoader for the evaluation dataset.
-
-        Returns:
-            None: Prints and logs the accuracy and dice score of the model on the provided dataset.
-        """
-        num_correct = 0
-        num_pixels = 0
-        dice_score = 0
-
-        self.model.eval()
-
-        with torch.no_grad():
-            for x, y in loader:
-                x = x.to(self.device)
-                y = y.to(self.device)
-                softmax = torch.nn.Softmax(dim=1)
-                preds = torch.argmax(softmax(self.model(x)), axis=1)
-                num_correct += (preds == y).sum()
-                num_pixels += torch.numel(preds)
-                dice_score += (2 * (preds * y).sum()) / ((preds + y).sum() + 1e-8)
-
-        print(f"Got {num_correct}/{num_pixels} with acc {num_correct/num_pixels*100:.2f}")
-        print(f"Dice score: {dice_score/len(loader)}")
-
-        self.model.train()
-
-    # TO REMOVE
-    #####################################################################################
-    # def compute_metrics(self, preds, masks):
-    #     """
-    #     Compute evaluation metrics including accuracy, precision, recall, and F1 score.
-
-    #     Args:
-    #         - mask (torch.Tensor): Ground truth mask.
-    #         - pred (torch.Tensor): Predicted mask.
-
-    #     Returns:
-    #         - dict: Dictionary containing computed metrics.
-    #     """
-    #     tp = torch.sum((preds == 1) & (masks == 1)).item()
-    #     fp = torch.sum((preds == 1) & (masks == 0)).item()
-    #     fn = torch.sum((preds == 0) & (masks == 1)).item()
-    #     tn = torch.sum((preds == 0) & (masks == 0)).item()
-
-    #     n = 1e-20
-
-    #     accuracy = (tp + tn) / (tp + fp + fn + tn + n)
-    #     precision = tp / (tp + fp + n)
-    #     recall = tp / (tp + fn + n)
-    #     f1_score = 2 * (precision * recall) / (precision + recall + n)
-
-    #     return {"accuracy": accuracy, "precision": precision,
-    #             "recall": recall, "f1_score": f1_score}
-
-    # # def check_results(self):
-    # #     """
-    # #     Method used to visualize show some samples at the first batch
-    # #     of each epoch to check model improvements.
-    # #     """
-    # #     self.model.eval()
-
-    # #     with torch.no_grad():
-    # #         images, masks = random.choice(list(self.test_loader))
-    # #         images = images.to(self.device)
-    # #         masks = masks.unsqueeze(1).to(self.device)
-    # #         logits = self.model(images)
-    # #         probs = torch.sigmoid(logits)
-    # #         y_pred = torch.round(probs)
-
-    # #         for image, mask, pred in zip(images, masks, y_pred):
-    # #             plt.figure(figsize=(12, 12))
-
-    # #             np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8)
-    # #             plt.subplot(1, 3, 1); plt.imshow(np_img); plt.title("Image")
-
-    # #             np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
-    # #             plt.subplot(1, 3, 2); plt.imshow(np_msk, cmap="gray"); plt.title("Mask")
-
-    # #             np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
-    # #             plt.subplot(1, 3, 3); plt.imshow(np_pred, cmap="gray"); plt.title("Prediction mask")
-
-    # #             plt.show(block=False); plt.pause(5); plt.close()
-
-    # #     self.model.train()
-
-    # def test_model(self):
-    #     """
-    #     Tests the neural network on the specified DataLoader for validation data.
-
-    #     Records test losses.
-    #     """
-    #     print(f"\nStarting test...\n")
-
-    #     all_masks = torch.tensor([], device=self.device)
-    #     all_preds = torch.tensor([], device=self.device)
-    #     test_losses = []
-
-    #     self.model.eval()
-
-    #     # no need to calculate the gradients for outputs
-    #     with torch.no_grad():
-    #         loop = tqdm(iterable=enumerate(self.test_loader),
-    #                     total=len(self.test_loader),
-    #                     leave=True)
-
-    #         for batch_idx, (images, masks) in loop:
-    #             # move data and labels to the specified device
-    #             images = images.to(self.device)
-    #             masks = masks.unsqueeze(1).to(self.device)
-
-    #             # forward pass: compute predicted outputs by passing inputs to the model
-    #             logits = self.model(images)
-    #             probs = torch.sigmoid(logits)
-    #             # calculate the loss
-    #             loss = self.criterion(probs, masks)
-    #             # record validation loss
-    #             test_losses.append(loss.item())
-    #             # since we are using BCEWithLogitsLoss
-    #             # logits --> probabilities --> labels
-    #             probs = torch.sigmoid(logits)
-    #             preds = torch.round(probs)
-    #             all_preds = torch.cat([all_preds, preds], dim=0)
-    #             all_masks = torch.cat([all_masks, masks], dim=0)
-
-    #             # update the loss value beside the progress bar for each iteration
-    #             loop.set_description(desc=f"Batch {batch_idx}, Loss: {loss.item():.3f}")
-
-    #             for image, mask, pred in zip(images, masks, preds):
-    #                 plt.figure(figsize=(12, 12))
-
-    #                 np_img = (image.squeeze().cpu().numpy().transpose(1, 2, 0) * 255).astype(dtype=np.uint8)
-    #                 plt.subplot(1, 3, 1); plt.imshow(np_img); plt.title("Image")
-
-    #                 np_msk = (mask.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
-    #                 plt.subplot(1, 3, 2); plt.imshow(np_msk, cmap="gray"); plt.title("Mask")
-
-    #                 np_pred = (pred.squeeze().cpu().numpy() * 255).astype(dtype=np.uint8)
-    #                 plt.subplot(1, 3, 3); plt.imshow(np_pred, cmap="gray"); plt.title("Prediction mask")
-
-    #                 plt.show(block=False); plt.pause(5); plt.close()
-
-    #         loop.close()
-
-    #         print(self.compute_metrics(preds=all_preds, masks=all_masks))
-    #         print(f"Mean test loss: {np.mean(test_losses):.4f}")
-    #####################################################################################
