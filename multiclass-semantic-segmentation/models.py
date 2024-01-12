@@ -5,28 +5,30 @@ from torchvision.models.segmentation import deeplabv3_resnet101
 
 
 class IOULoss(nn.Module):
-    def __init__(self, num_classes, average="macro", weight=None):
+    def __init__(self, num_classes: int, average: str = "macro", weight: torch.Tensor = None) -> None:
         """
         Intersection over Union (IOU) loss for multiclass semantic segmentation.
 
         Args:
             - num_classes (int): Number of classes in the segmentation task.
             - average (str, optional): Specifies whether to compute the average loss across the batch.
-                Possible values are "none", "micro", "macro", "weighted", or None. Default is "none".
+                Possible values are "none" or "macro". Default is "macro".
             - weight (Tensor, optional): A tensor of weights for each class. If None, all classes have equal weight.
                 Default is None.
+        
+        Returns:
+            - None.
         """
         super(IOULoss, self).__init__()
         self.weight = weight
         self.average = average
         self.num_classes = num_classes
-        self.metric = MulticlassJaccardIndex(average=average,
-                                             num_classes=num_classes)        
+        self.metric = MulticlassJaccardIndex(average=average, num_classes=num_classes)
         if self.average == "none":
             assert self.weight is not None, "Weight should be provided when average='none'."
             assert self.weight.dtype == torch.float32, "Input tensor 'weight' must be of type float32."
 
-    def forward(self, predicted, target):
+    def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Compute the IOU loss for multiclass semantic segmentation.
 
@@ -37,7 +39,6 @@ class IOULoss(nn.Module):
         Returns:
             - Tensor: IOU loss.
         """
-        # check tensor types
         assert predicted.dtype == torch.float32, "Input tensor 'predicted' must be of type float32."
         assert target.dtype == torch.float32, "Input tensor 'target' must be of type float32."
 
@@ -51,63 +52,93 @@ class IOULoss(nn.Module):
         return iou_loss
 
 
-def conv_layer(input_channels, output_channels):
-    """
-    Create a convolutional layer block with ReLU activation and batch normalization.
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels: int, output_channels: int, kernel_size: int, padding: int) -> None:
+        """
+        Create a convolutional layer block with ReLU activation and batch normalization.
 
-    Args:
-        - input_channels (int): Number of input channels.
-        - output_channels (int): Number of output channels.
+        Args:
+            - in_channels (int): Number of input channels.
+            - output_channels (int): Number of output channels.
+            - kernel_size (int): Size of the convolutional kernel.
+            - padding (int): Padding size for the convolutional layer.
 
-    Returns:
-        - nn.Sequential: Convolutional layer block.
-    """
-    conv = nn.Sequential(
-        nn.Conv2d(input_channels, output_channels, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(output_channels, output_channels, kernel_size=3, padding=1),
-        nn.BatchNorm2d(output_channels),
-        nn.ReLU()
-    )
+        Returns:
+            - None.
+        """
+        super(ConvBlock, self).__init__()
+        self.conv_block = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, 
+                      out_channels=output_channels, 
+                      kernel_size=kernel_size, 
+                      padding=padding,
+                      bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=output_channels, 
+                      out_channels=output_channels, 
+                      kernel_size=kernel_size, 
+                      padding=padding,
+                      bias=False),
+            nn.BatchNorm2d(output_channels),
+            nn.ReLU(inplace=True)
+        )
 
-    return conv
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the convolutional layer block.
+
+        Args:
+            - x (torch.Tensor): Input tensor.
+
+        Returns:
+            - torch.Tensor: Output tensor.
+        """
+        return self.conv_block(x)
+
 
 class UNet(nn.Module):
-    def __init__(self, n_classes):
+    def __init__(self, in_channels: int = 3, n_classes: int = 3) -> None:
         """
         U-Net architecture for semantic segmentation.
+
+        Args:
+            - in_channels (int): Number of input channels.
+            - out_channels (int): Number of output channels.
+
+        Returns:
+            - None.
         """
         super(UNet, self).__init__()
-        
-        self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.down_1 = conv_layer(3, 64)
-        self.down_2 = conv_layer(64, 128)
-        self.down_3 = conv_layer(128, 256)
-        self.down_4 = conv_layer(256, 512)
-        self.down_5 = conv_layer(512, 1024)
+        self.down_1 = ConvBlock(in_channels=in_channels, output_channels=64, kernel_size=3, padding=1)
+        self.down_2 = ConvBlock(in_channels=64, output_channels=128, kernel_size=3, padding=1)
+        self.down_3 = ConvBlock(in_channels=128, output_channels=256, kernel_size=3, padding=1)
+        self.down_4 = ConvBlock(in_channels=256, output_channels=512, kernel_size=3, padding=1)
+        self.down_5 = ConvBlock(in_channels=512, output_channels=1024, kernel_size=3, padding=1)
         
         self.up_1 = nn.ConvTranspose2d(in_channels=1024, out_channels=512, kernel_size=2, stride=2)
-        self.up_conv_1 = conv_layer(1024, 512)
+        self.up_conv_1 = ConvBlock(in_channels=1024, output_channels=512, kernel_size=3, padding=1)
         self.up_2 = nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=2, stride=2)
-        self.up_conv_2 = conv_layer(512, 256)
+        self.up_conv_2 = ConvBlock(in_channels=512, output_channels=256, kernel_size=3, padding=1)
         self.up_3 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=2, stride=2)
-        self.up_conv_3 = conv_layer(256, 128)
+        self.up_conv_3 = ConvBlock(in_channels=256, output_channels=128, kernel_size=3, padding=1)
         self.up_4 = nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2)
-        self.up_conv_4 = conv_layer(128, 64)
+        self.up_conv_4 = ConvBlock(in_channels=128, output_channels=64, kernel_size=3, padding=1)
         
         self.output = nn.Conv2d(in_channels=64, out_channels=n_classes, kernel_size=1, padding=0)
+
+        self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2)
                 
-    def forward(self, img):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the U-Net model.
 
         Args:
-            - img (torch.Tensor): Input image.
+            - x (torch.Tensor): Input image.
 
         Returns:
             - torch.Tensor: Predicted mask.
         """
-        x1 = self.down_1(img)
+        x1 = self.down_1(x)
         x2 = self.max_pool(x1)
         x3 = self.down_2(x2)
         x4 = self.max_pool(x3)
