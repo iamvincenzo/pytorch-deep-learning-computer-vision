@@ -4,54 +4,6 @@ from torchmetrics.classification import MulticlassJaccardIndex
 from torchvision.models.segmentation import deeplabv3_resnet101
 
 
-class IOULoss(nn.Module):
-    def __init__(self, num_classes: int, average: str = "macro", weight: torch.Tensor = None) -> None:
-        """
-        Intersection over Union (IOU) loss for multiclass semantic segmentation.
-
-        Args:
-            - num_classes (int): Number of classes in the segmentation task.
-            - average (str, optional): Specifies whether to compute the average loss across the batch.
-                Possible values are "none" or "macro". Default is "macro".
-            - weight (Tensor, optional): A tensor of weights for each class. If None, all classes have equal weight.
-                Default is None.
-        
-        Returns:
-            - None.
-        """
-        super(IOULoss, self).__init__()
-        self.weight = weight
-        self.average = average
-        self.num_classes = num_classes
-        self.metric = MulticlassJaccardIndex(average=average, num_classes=num_classes)
-        if self.average == "none":
-            assert self.weight is not None, "Weight should be provided when average='none'."
-            assert self.weight.dtype == torch.float32, "Input tensor 'weight' must be of type float32."
-
-    def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the IOU loss for multiclass semantic segmentation.
-
-        Args:
-            - predicted (Tensor): Predicted segmentation masks (logits).
-            - target (Tensor): Ground truth segmentation masks (class indices).
-
-        Returns:
-            - Tensor: IOU loss.
-        """
-        assert predicted.dtype == torch.float32, "Input tensor 'predicted' must be of type float32."
-        assert target.dtype == torch.float32, "Input tensor 'target' must be of type float32."
-
-        iou = self.metric(predicted, target)
-
-        iou_loss = 1 - iou
-
-        if self.average == "none":
-            iou_loss = (iou_loss * self.weight).mean()
-
-        return iou_loss
-
-
 class ConvBlock(nn.Module):
     def __init__(self, in_channels: int, output_channels: int, kernel_size: int, padding: int) -> None:
         """
@@ -169,3 +121,58 @@ class UNet(nn.Module):
 #     model.aux_classifier[4] = nn.Conv2d(256, num_classes, 1)
     
 #     return model
+
+
+# error in loss.backward() because torch.argmax() detach network output from the graph because it is not differentiable
+# https://discuss.pytorch.org/t/element-0-of-tensors-does-not-require-grad-and-does-not-have-a-grad-fn-how-can-i-fix-this/140756
+# 
+# class IOULoss(nn.Module):
+#     def __init__(self, num_classes: int, average: str = "macro", weight: torch.Tensor = None) -> None:
+#         """
+#         Intersection over Union (IOU) loss for multiclass semantic segmentation.
+
+#         Args:
+#             - num_classes (int): Number of classes in the segmentation task.
+#             - average (str, optional): Specifies whether to compute the average loss across the batch.
+#                 Possible values are "none" or "macro". Default is "macro".
+#             - weight (Tensor, optional): A tensor of weights for each class. If None, all classes have equal weight.
+#                 Default is None.
+        
+#         Returns:
+#             - None.
+#         """
+#         super(IOULoss, self).__init__()
+#         self.weight = weight
+#         self.average = average
+#         self.num_classes = num_classes
+#         self.metric = MulticlassJaccardIndex(average=average, num_classes=num_classes)
+#         if self.average == "none":
+#             assert self.weight is not None, "Weight should be provided when average='none'."
+#             assert self.weight.dtype == torch.float32, "Input tensor 'weight' must be of type float32."
+
+#     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+#         """
+#         Compute the IOU loss for multiclass semantic segmentation.
+
+#         Args:
+#             - logits (Tensor): Predicted segmentation masks (logits).
+#             - target (Tensor): Ground truth segmentation masks (class indices).
+
+#         Returns:
+#             - Tensor: IOU loss.
+#         """
+#         # since we are using CrossEntropyLoss: logits --> probabilities --> labels
+#         probs = torch.softmax(logits, dim=1)
+#         predicted = torch.argmax(probs, dim=1)
+
+#         assert predicted.dtype == torch.int64, "Input tensor 'predicted' must be of type int64."
+#         assert target.dtype == torch.int64, "Input tensor 'target' must be of type int64."
+
+#         iou = self.metric(predicted, target)
+
+#         iou_loss = 1 - iou
+
+#         if self.average == "none":
+#             iou_loss = (iou_loss * self.weight).mean()
+
+#         return iou_loss
