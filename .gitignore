@@ -174,3 +174,4 @@ __pycache__
 */keras-binary-classification/*.png
 */keras-binary-classification/*.txt
 *.pt
+*.png
