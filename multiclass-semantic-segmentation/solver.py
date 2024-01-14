@@ -1,3 +1,4 @@
+import json
 import torch
 import random
 import numpy as np
@@ -11,17 +12,20 @@ from torch.optim.lr_scheduler import LRScheduler
 
 from plotting_utils import show_preds
 from early_stopping import EarlyStopping
+from utils import measure_performance_cpu
+from utils import measure_performance_gpu
 # from plotting_utils import show_batch_preds
 # from plotting_utils import show_batch_preds_with_transparency
 
 
 class Solver(object):
-    def __init__(self, epochs: int, start_epoch: int, writer: Any, train_loader: DataLoader, test_loader: DataLoader, 
+    def __init__(self, test_name: str, epochs: int, start_epoch: int, writer: Any, train_loader: DataLoader, test_loader: DataLoader, 
                  device: torch.device, model: nn.Module, optimizer: optim.Optimizer, scheduler: LRScheduler, criterion: nn.Module, patience: int) -> None:
         """
         A class to handle training and validation of a PyTorch neural network.
 
         Args:
+            - test_name (str): File path where to save statistics. 
             - epochs (int): Number of training epochs.
             - writer (object): Object for writing logs (e.g., TensorBoard writer).
             - train_loader (torch.utils.data.DataLoader): DataLoader for training data.
@@ -35,6 +39,7 @@ class Solver(object):
         Returns:
             - None.
         """
+        self.test_name = test_name
         self.epochs = epochs
         self.start_epoch = start_epoch
         self.writer = writer
@@ -47,13 +52,27 @@ class Solver(object):
         self.criterion = criterion.to(self.device)
         self.patience = patience
 
-        self.model_reslts = {
-            "test_name": "",
-            "model_name": self.model.__class__.__name__,
+        self.model_results = {
+            "test_name": self.test_name,
+            "model_name": str(self.model.__class__.__name__),
             "train_time": 0.0,
             "tot_epochs": 0,
-            "model_loss": 0.0,
-            "model_acc": 0.0
+            "device": str(self.device),
+            "model_loss": str(self.criterion),
+            "model_optimizer": str(self.optimizer),
+            "model_lr_scheduler": str(self.scheduler),
+            "model_train_loss": 0.0,
+            "model_valid_loss": 0.0,
+            "model_test_loss": 0.0,
+            "model_mIoU": 0.0,
+            "model_mIoU_classes": [],
+            "model_mDice": 0.0,
+            "model_mDice_classes": [],
+            "model_macro_recall": 0.0,
+            "model_recall_classes": [],
+            "mean_inference_time": 0.0,
+            "std_inference_time": 0.0,
+            "model_throughput": 0.0
         }
 
     def get_metrics(self, y_true: torch.Tensor, y_pred: torch.Tensor, num_classes: int, smooth: Optional[float] = 2.22e-16):
@@ -127,8 +146,7 @@ class Solver(object):
             # forward pass: compute predicted outputs by passing inputs to the model
             logits = self.model(images)
             
-            # since we are using CrossEntropyLoss
-            # logits --> probabilities --> labels
+            # since we are using CrossEntropyLoss: logits --> probabilities --> labels
             probs = torch.softmax(logits, dim=1)
             preds = torch.argmax(probs, dim=1)
 
@@ -191,8 +209,7 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_train)
 
-                # since we are using CrossEntropyLoss
-                # logits --> probabilities --> labels
+                # since we are using CrossEntropyLoss: logits --> probabilities --> labels
                 probs = torch.softmax(logits, dim=1)
                 y_pred = torch.argmax(probs, dim=1)
 
@@ -239,6 +256,10 @@ class Solver(object):
             valid_loss = np.average(valid_losses)
             avg_train_losses.append(train_loss)
             avg_valid_losses.append(valid_loss)
+        
+            # save dict results
+            self.model_results["model_train_loss"] = train_loss
+            self.model_results["model_valid_loss"] = valid_loss
 
             if self.scheduler is not None:
                 # step should be called after validate
@@ -274,7 +295,7 @@ class Solver(object):
 
         print("\nTraining model Done...")
 
-        self.model_reslts["tot_epochs"] = epoch + 1
+        self.model_results["tot_epochs"] = epoch + 1
 
         if self.writer is not None:
             # write all remaining data in the buffer
@@ -282,20 +303,20 @@ class Solver(object):
             # free up system resources used by the writer
             self.writer.close()
 
-    def valid_net(self, epoch: int, valid_losses: list, show_results: Optional[bool] = False) -> None:
+    def valid_net(self, epoch: int, valid_losses: list, collect_stats: Optional[bool] = False, show_results: Optional[bool] = False) -> None:
         """
-        Validates the neural network on the specified DataLoader for validation data.
+        Validates/Tests the neural network on the specified DataLoader for validation/test data.
 
-        Records validation losses in the provided list.
+        Records validation/test losses in the provided list.
 
         Args:
             - epoch (int): The current epoch during validation.
-            - valid_losses (list): List to record validation losses.
+            - valid_losses (list): List to record validation/test losses.
 
         Returns:
             - None.
         """
-        print(f"\nStarting validation...\n")
+        print(f"\nStarting validation/testing...\n")
 
         all_masks = torch.tensor([], device=self.device)
         all_preds = torch.tensor([], device=self.device)
@@ -316,8 +337,7 @@ class Solver(object):
                 # forward pass: compute predicted outputs by passing inputs to the model
                 logits = self.model(x_valid)
 
-                # since we are using CrossEntropyLoss
-                # logits --> probabilities --> labels
+                # since we are using CrossEntropyLoss: logits --> probabilities --> labels
                 probs = torch.softmax(logits, dim=1)
                 y_pred = torch.argmax(probs, dim=1)
 
@@ -349,7 +369,32 @@ class Solver(object):
             print(f"\nmIoU: {mIoU}, mean_dice_coeff: {mean_dice_coeff}, macro_recall: {macro_recall}")            
             print(f"IoU_classess: {IoU_classes}")
             print(f"dice_classes: {dice_classes}")
-            print(f"recall_classes: {recall_classes}\n")
+            print(f"recall_classes: {recall_classes}")
+
+            # for final test
+            if collect_stats:
+                if torch.cuda.is_available():
+                    mean_inf_time, std_inf_time, throughput = measure_performance_gpu(model=self.model,
+                                                                                    test_loader=self.test_loader,
+                                                                                    device=self.device)
+                    self.model_results["model_throughput"] = throughput
+                else:
+                    mean_inf_time, std_inf_time = measure_performance_cpu(model=self.model,
+                                                                        test_loader=self.test_loader,
+                                                                        device=self.device)                
+                # save dict results
+                self.model_results["model_mIoU"] = mIoU
+                self.model_results["model_mIoU_classes"] = IoU_classes.tolist() 
+                self.model_results["model_mDice"] = mean_dice_coeff
+                self.model_results["model_mDice_classes"] = dice_classes.tolist()
+                self.model_results["model_macro_recall"] = macro_recall
+                self.model_results["model_recall_classes"] = recall_classes.tolist()
+                self.model_results["model_test_loss"] = np.average(valid_losses)
+                self.model_results["mean_inference_time"] = mean_inf_time
+                self.model_results["std_inference_time"] = std_inf_time            
+
+                with open("./" + self.test_name + "_statistics.json", "w") as json_file:
+                    json.dump(self.model_results, json_file)
 
         # set the model back to training mode
         self.model.train()
