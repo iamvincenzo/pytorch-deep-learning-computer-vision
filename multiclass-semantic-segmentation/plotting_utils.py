@@ -57,6 +57,7 @@ def show_preds(images: torch.Tensor, masks: torch.Tensor, preds: torch.Tensor, a
         plt.subplot(2, 3, 5); plt.imshow(np_gt_msk); plt.title("Mask")
         plt.subplot(2, 3, 6); plt.imshow(np_pred_msk); plt.title("Prediction mask")
         plt.show(block=False); plt.pause(7); plt.close()
+        # plt.show()
 
 
 # def show_batch_preds(images, masks, preds):
