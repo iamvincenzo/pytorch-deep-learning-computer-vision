@@ -8,9 +8,6 @@ from torch.utils.data import Dataset
 from albumentations.pytorch.transforms import ToTensorV2
 
 
-CLASSES = ["background", "foliage", "waste"]
-
-
 class BucherDataset(Dataset):
     def __init__(self, images: list, resize_h: int, resize_w: int, data_aug: bool) -> None:
         """
