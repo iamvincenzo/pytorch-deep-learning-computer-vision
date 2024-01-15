@@ -27,6 +27,8 @@ from early_stopping import load_checkpoint
 # from attUnetGithub import AttentionUNet
 
 
+# os.chdir("./drive/MyDrive/Workspace/UNet")
+
 # reproducibility
 SEED = 42
 random.seed(SEED)
@@ -46,11 +48,11 @@ N_CLASSES = 3
 BATCH_SIZE = 4
 START_EPOCH = 0
 # ACTIVATION = None
-RESUME_TRAIN = False
+RESUME_TRAIN = True
 ENCODER = "resnet18"
 TEST_NAME = "test_1"
 ENCODER_WEIGHTS = None # "imagenet"
-IMGS_PTH = "./data/images/*.png"
+IMGS_PTH = "./data/preprocessed-images/**/*.png"
 WORKERS = os.cpu_count() if os.cpu_count() < 4 else 4
 L2_REG = 0 # 0.004
 
@@ -59,19 +61,27 @@ L2_REG = 0 # 0.004
 if __name__ == "__main__":
     # shuffle and split dataset into training and testing sets
     all_images = shuffle([fn for fn in glob(pathname=IMGS_PTH) if "_mask" not in fn], random_state=SEED)
-    
-    X_train, X_test = train_test_split(all_images, test_size=0.2, random_state=SEED)
-    
+
+    X_test = [filename for filename in all_images if "test" in filename]
+    X_train = [filename for filename in all_images if "train" in filename]
+    X_validation = [filename for filename in all_images if "validation" in filename]
+    # X_train, X_test = train_test_split(all_images, test_size=0.2, random_state=SEED)
+
+    print(f"\nTrain-set n-samples: {len(X_train)}, Test-set n-samples: {len(X_test)}, Validation-set n-samples: {len(X_validation)}")    
+   
     # create datasets and apply data augmentation
     train_dataset = BucherDataset(images=X_train, resize_h=RESIZE, resize_w=RESIZE, data_aug=True)
+    valid_dataset = BucherDataset(images=X_validation, resize_h=RESIZE, resize_w=RESIZE, data_aug=False)
     test_dataset = BucherDataset(images=X_test, resize_h=RESIZE, resize_w=RESIZE, data_aug=False)
     
     # dataLoader settings for efficient data loading
     pin = True if torch.cuda.is_available() else False
     train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, 
                               shuffle=True, num_workers=WORKERS, pin_memory=pin)
+    valid_loader = DataLoader(dataset=valid_dataset, batch_size=BATCH_SIZE, 
+                              shuffle=False, num_workers=WORKERS, pin_memory=pin)
     test_loader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE,
-                             shuffle=True, num_workers=WORKERS, pin_memory=pin)
+                             shuffle=False, num_workers=WORKERS, pin_memory=pin)
 
     # determine the device for training (use GPU if available, otherwise use CPU)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,7 +103,7 @@ if __name__ == "__main__":
     
     if RESUME_TRAIN:
         print("\nLoading model...")
-        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=7-val_loss=0.3543.pt", # model-epoch=29-val_loss=0.1494.pt
+        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=14-val_loss=0.4660.pt", # model-epoch=29-val_loss=0.1494.pt
                                                         model=model, optimizer=optimizer) # , scheduler
     
     # # define the loss function for training the model
@@ -102,10 +112,10 @@ if __name__ == "__main__":
     # # w[2] = w[1] # same weight for foliage and waste
     # # # w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
     # # loss_fn = nn.CrossEntropyLoss(weight=w.to(device))
-    # loss_fn = smp.losses.JaccardLoss(mode="multiclass", classes=[0, 1, 2], from_logits=True)
-    # loss_fn.__name__ = "Jaccard_loss"
-    w = torch.tensor([0.00042003, 0.006354, 0.007354], dtype=torch.float32, device=device)
-    loss_fn = CustomLoss(n_classes=3, device=device, ce_weights=w, avg=True, W_CE=1., W_IoU=1., W_Dice=1.)
+    loss_fn = smp.losses.JaccardLoss(mode="multiclass", classes=[0, 1, 2], from_logits=True)
+    loss_fn.__name__ = "Jaccard_loss"
+    # w = torch.tensor([0.00042003, 0.006354, 0.007354], dtype=torch.float32, device=device)
+    # loss_fn = CustomLoss(n_classes=3, device=device, ce_weights=w, avg=True, W_CE=1., W_IoU=1., W_Dice=1.)
 
     # create an instance of the Solver class for training and validation
     solver = Solver(test_name=TEST_NAME,
@@ -113,6 +123,7 @@ if __name__ == "__main__":
                     start_epoch=START_EPOCH,
                     writer=None,
                     train_loader=train_loader,
+                    valid_loader=valid_loader,
                     test_loader=test_loader,
                     device=device,
                     model=model,
@@ -127,15 +138,15 @@ if __name__ == "__main__":
 
     print("\nModel: ")
     # summary(model=model, input_size=input_size)
-    summary(model, torch.zeros(inputs.shape), max_depth=5, print_summary=True)
+    summary(model, torch.zeros(inputs.shape).to(device), max_depth=5, print_summary=True)
 
     # train the neural network
     solver.train_net()
 
     # test the neural network
     test_losses = []
-    solver.valid_net(epoch=None, valid_losses=test_losses, 
-                     collect_stats=True, show_results=True)
+    solver.valid_net(epoch=None, data_loader=test_loader, 
+                     valid_losses=test_losses, collect_stats=True, show_results=True)
     test_loss = np.average(test_losses)
     print(f"Mean test loss: {np.mean(test_losses):.4f}\n")
 
