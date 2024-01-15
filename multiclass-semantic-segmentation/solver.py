@@ -19,7 +19,7 @@ from utils import measure_performance_gpu
 
 
 class Solver(object):
-    def __init__(self, test_name: str, epochs: int, start_epoch: int, writer: Any, train_loader: DataLoader, test_loader: DataLoader, 
+    def __init__(self, test_name: str, epochs: int, start_epoch: int, writer: Any, train_loader: DataLoader, valid_loader: DataLoader, test_loader: DataLoader, 
                  device: torch.device, model: nn.Module, optimizer: optim.Optimizer, scheduler: LRScheduler, criterion: nn.Module, patience: int) -> None:
         """
         A class to handle training and validation of a PyTorch neural network.
@@ -248,7 +248,7 @@ class Solver(object):
             print(f"recall_classes: {recall_classes}\n")
 
             # validate the model on the validation set
-            self.valid_net(epoch=epoch, valid_losses=valid_losses, show_results=False)
+            self.valid_net(epoch=epoch, data_loader=self.valid_loader, valid_losses=valid_losses, show_results=False)
 
             # print training/validation statistics
             # calculate average loss over an epoch
@@ -303,7 +303,7 @@ class Solver(object):
             # free up system resources used by the writer
             self.writer.close()
 
-    def valid_net(self, epoch: int, valid_losses: list, collect_stats: Optional[bool] = False, show_results: Optional[bool] = False) -> None:
+    def valid_net(self, epoch: int, data_loader: DataLoader, valid_losses: list, collect_stats: Optional[bool] = False, show_results: Optional[bool] = False) -> None:
         """
         Validates/Tests the neural network on the specified DataLoader for validation/test data.
 
@@ -325,8 +325,8 @@ class Solver(object):
 
         # no need to calculate the gradients for outputs
         with torch.no_grad():
-            loop = tqdm(iterable=enumerate(self.test_loader),
-                        total=len(self.test_loader),
+            loop = tqdm(iterable=enumerate(data_loader),
+                        total=len(data_loader),
                         leave=True)
 
             for batch_idx, (x_valid, y_valid) in loop:
@@ -375,13 +375,13 @@ class Solver(object):
             if collect_stats:
                 if torch.cuda.is_available():
                     mean_inf_time, std_inf_time, throughput = measure_performance_gpu(model=self.model,
-                                                                                    test_loader=self.test_loader,
-                                                                                    device=self.device)
+                                                                                      test_loader=data_loader,
+                                                                                      device=self.device)
                     self.model_results["model_throughput"] = throughput
                 else:
                     mean_inf_time, std_inf_time = measure_performance_cpu(model=self.model,
-                                                                        test_loader=self.test_loader,
-                                                                        device=self.device)                
+                                                                          test_loader=data_loader,
+                                                                          device=self.device)                
                 # save dict results
                 self.model_results["model_mIoU"] = mIoU
                 self.model_results["model_mIoU_classes"] = IoU_classes.tolist() 
