@@ -4,23 +4,27 @@ import random
 import numpy as np
 from glob import glob
 import torch.nn as nn
+from torchsummary import summary
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
+from pytorch_model_summary import summary
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import segmentation_models_pytorch as smp
-# from segmentation_models_pytorch.utils.metrics import IoU
-# from segmentation_models_pytorch.utils.train import TrainEpoch
-# from segmentation_models_pytorch.utils.train import ValidEpoch
+from segmentation_models_pytorch.utils.metrics import IoU
+from segmentation_models_pytorch.utils.train import TrainEpoch
+from segmentation_models_pytorch.utils.train import ValidEpoch
 
 from models import UNet
 from solver import Solver
-# from models import IOULoss
+from models import CustomLoss
+from models import AttentionUNet
 from dataset import BucherDataset
-# from utils import calculate_class_weights
+from models import LightAttentionUNet
+from utils import calculate_class_weights
 from early_stopping import load_checkpoint
-# from utils import measure_transferring_time
+# from attUnetGithub import AttentionUNet
 
 
 # reproducibility
@@ -41,7 +45,7 @@ PATIENCE = 10
 N_CLASSES = 3
 BATCH_SIZE = 4
 START_EPOCH = 0
-ACTIVATION = None
+# ACTIVATION = None
 RESUME_TRAIN = False
 ENCODER = "resnet18"
 TEST_NAME = "test_1"
@@ -74,7 +78,8 @@ if __name__ == "__main__":
     print(f"\nDevice: {device}")
 
     # instantiate the U-Net model and move it to the specified device
-    model = UNet(n_classes=N_CLASSES).to(device)
+    # model = AttentionUNet(in_channels=3, n_classes=N_CLASSES).to(device)
+    model = UNet(in_channels=3, n_classes=N_CLASSES).to(device)
     # model = smp.UnetPlusPlus(encoder_name=ENCODER, 
     #                          encoder_weights=ENCODER_WEIGHTS, 
     #                          in_channels=3, classes=3, activation=ACTIVATION)
@@ -88,17 +93,19 @@ if __name__ == "__main__":
     
     if RESUME_TRAIN:
         print("\nLoading model...")
-        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=29-val_loss=0.1494.pt",
+        model, optimizer, START_EPOCH = load_checkpoint(fpath="./checkpoints/model-epoch=7-val_loss=0.3543.pt", # model-epoch=29-val_loss=0.1494.pt
                                                         model=model, optimizer=optimizer) # , scheduler
     
-    # define the loss function for training the model
-    # https://discuss.pytorch.org/t/loss-function-for-multi-class-semantic-segmentation/117570
-    # w = calculate_class_weights(train_loader, num_classes=3) # 0.00042003 0.006354 0.99323
-    # w[2] = w[1] # same weight for foliage and waste
-    # # w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
-    # loss_fn = nn.CrossEntropyLoss(weight=w.to(device))
-    loss_fn = smp.losses.JaccardLoss(mode="multiclass", classes=[0, 1, 2], from_logits=True)
-    loss_fn.__name__ = "Jaccard_loss"
+    # # define the loss function for training the model
+    # # https://discuss.pytorch.org/t/loss-function-for-multi-class-semantic-segmentation/117570
+    # # w = calculate_class_weights(train_loader, num_classes=3) # 0.00042003 0.006354 0.99323
+    # # w[2] = w[1] # same weight for foliage and waste
+    # # # w = torch.tensor([0.00042003, 0.006354, 0.008354], dtype=torch.float32, device=device)
+    # # loss_fn = nn.CrossEntropyLoss(weight=w.to(device))
+    # loss_fn = smp.losses.JaccardLoss(mode="multiclass", classes=[0, 1, 2], from_logits=True)
+    # loss_fn.__name__ = "Jaccard_loss"
+    w = torch.tensor([0.00042003, 0.006354, 0.007354], dtype=torch.float32, device=device)
+    loss_fn = CustomLoss(n_classes=3, device=device, ce_weights=w, avg=True, W_CE=1., W_IoU=1., W_Dice=1.)
 
     # create an instance of the Solver class for training and validation
     solver = Solver(test_name=TEST_NAME,
@@ -113,6 +120,14 @@ if __name__ == "__main__":
                     scheduler=scheduler,
                     criterion=loss_fn,
                     patience=PATIENCE)
+    
+    # get input shape
+    inputs, _ = next(iter(train_loader))
+    input_size = inputs.shape[1:]
+
+    print("\nModel: ")
+    # summary(model=model, input_size=input_size)
+    summary(model, torch.zeros(inputs.shape), max_depth=5, print_summary=True)
 
     # train the neural network
     solver.train_net()
