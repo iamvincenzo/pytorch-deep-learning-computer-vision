@@ -8,35 +8,6 @@ from torch.utils.data import Dataset
 from albumentations.pytorch.transforms import ToTensorV2
 
 
-def preprocess_data(resize: bool = True, resize_h: int = 0, resize_w: int = 0, normalize: bool = True, mean: list = None, std: list = None) -> A.Compose:
-    """
-    Preprocesses image data using Albumentations transformations.
-
-    Parameters:
-        - resize (bool): Whether to resize the image.
-        - resize_h (int): Height for resizing (if resize is True).
-        - resize_w (int): Width for resizing (if resize is True).
-        - normalize (bool): Whether to normalize the image.
-        - mean (list): List of mean values for normalization.
-        - std (list): List of standard deviation values for normalization.
-
-    Returns:
-        - A.Compose: Albumentations composition for data preprocessing.
-    """
-    transf = []
-    if resize:
-        assert resize_h > 0 and resize_w > 0, "Resie_H and Resize_W must me > 0."
-        transf.append(A.Resize(height=resize_h, width=resize_w, p=1., always_apply=True))
-    if normalize:
-        assert mean is not None and std is not None, "Mean and Std must be not None."
-        transf.append(A.Normalize(mean=mean, std=std, p=1., always_apply=True))
-    transf.append(ToTensorV2())
-    
-    transform = A.Compose(transf)
-    
-    return transform
-        
-
 class BucherDataset(Dataset):
     def __init__(self, images: list, resize_h: int, resize_w: int, data_aug: bool) -> None:
         """
