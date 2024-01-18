@@ -23,8 +23,6 @@ def preprocess_data(resize: bool = True, resize_h: int = 0, resize_w: int = 0, n
     Returns:
         - A.Compose: Albumentations composition for data preprocessing.
     """
-
-
     transf = []
     if resize:
         assert resize_h > 0 and resize_w > 0, "Resie_H and Resize_W must me > 0."
