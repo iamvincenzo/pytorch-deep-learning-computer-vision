@@ -6,13 +6,15 @@ from torchsummary import summary
 from model import Transformer
 
 
+# paramateres
 SEED = 42
+LR = 0.001
 EPOCHS = 1000
 NUM_HEADS = 8
 N_CLASSES = 1
 DROPOUT = 0.5
 EMBED_DIM = 512
-PRINT_EVERY = 10
+PRINT_EVERY = 100
 NUM_ENCODER_BLOCKS = 4
 
 torch.manual_seed(42)
@@ -43,34 +45,39 @@ def get_probs(n_classes: int, y_pred: torch.Tensor, y_true: torch.Tensor) -> tup
 
 
 if __name__ == "__main__":
+    # select the device
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+    # define the model
     model = Transformer(num_encoder_blocks=NUM_ENCODER_BLOCKS, 
                         num_heads=NUM_HEADS, embed_dim=EMBED_DIM, n_classes=N_CLASSES, dropout=DROPOUT)
     model = model.to(device)
 
+    # define training/validation data
     x_train = torch.randn(8, 1, 512)
     y_train = torch.rand(8, 1).round()
 
-    x_val = x_train # torch.randn(8, 1, 512)
-    y_val = y_train # torch.rand(8, 1).round()
+    # print the model summary
+    summary(model=model, input_size=(x_train.shape[1:]), batch_size=x_train.shape[0], device=device)
 
-    summary(model=model, input_size=(x_train.shape[1:]), batch_size=x_train.shape[0], device="cpu")
+    # define the loss function
+    loss_fn = nn.BCEWithLogitsLoss()
 
-    loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+    # define the optimizer
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=LR)
 
     train_losses, val_losses = [], []
 
+    # train the model
     model.train()
-
     for values in range(EPOCHS):
-        y_ = model(x_train)
-    
-        y_, _ = get_probs(n_classes=N_CLASSES, y_pred=y_, y_true=y_train)
-    
-        train_loss = loss_fn(y_, y_train)
+        x_train = x_train.to(device)
+        y_train = y_train.to(device)
 
+        y_ = model(x_train)
+                
+        train_loss = loss_fn(y_, y_train)
+        
         optimizer.zero_grad()
         train_loss.backward()
         optimizer.step()
@@ -78,26 +85,29 @@ if __name__ == "__main__":
         if values % 10 == 9:
             train_losses.append(train_loss.item())
 
+        # evaluate the model 
         model.eval()
         with torch.no_grad():
-            y_ = model(x_val)
+            x_train = x_train.to(device)
+            y_train = y_train.to(device)
 
-            y_, _ = get_probs(n_classes=N_CLASSES, y_pred=y_, y_true=y_val)
-
-            val_loss = loss_fn(y_, y_val)
+            y_ = model(x_train)
+            
+            val_loss = loss_fn(y_, y_train)
+            
             if values % 10 == 9:
                 val_losses.append(val_loss)
         model.train()
 
         if (values + 1) % PRINT_EVERY == 0:
-            print(f"epoch[{values + 1}/500]: train-loss: {train_loss}, val-loss: {val_loss}")
+            print(f"epoch[{values + 1}/{EPOCHS}]: train-loss: {train_loss}, val-loss: {val_loss}")
     
-    epochs = range(1, len(train_losses) + 1)  # Creating an array representing epochs
-    plt.plot(epochs, train_losses, color='blue', label='Train Loss')
-    plt.plot(epochs, val_losses, color='red', label='Validation Loss')
-    plt.yscale('log')  # setting log scale for y-axis
-    plt.xlabel('Epochs')  # Labeling x-axis
-    plt.ylabel('Loss')  # Labeling y-axis
-    plt.legend()
-    plt.show()
-
+            # plot train and validation losses
+            epochs = range(1, len(train_losses) + 1)
+            plt.plot(epochs, train_losses, color="blue", label="Train Loss")
+            plt.plot(epochs, val_losses, color="red", label="Validation Loss")
+            plt.yscale("log")
+            plt.xlabel("Epochs")
+            plt.ylabel("Loss")
+            plt.legend()
+            plt.show()
